@@ -1,0 +1,37 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * Composer script wrapper for git:sync command
+ * This script delegates to the main git-sync binary
+ *
+ * Usage: composer sync
+ *        composer sync -- -m "Custom message"
+ *        composer sync -- --message="Custom message"
+ *        composer sync -- --verbose
+ */
+
+// Delegate to the main git-sync binary
+$gitSyncPath = __DIR__ . '/git-sync';
+
+if (!file_exists($gitSyncPath)) {
+    echo "\033[31mError: git-sync binary not found.\033[0m\n";
+    exit(1);
+}
+
+// Pass all arguments to git-sync
+$args = array_slice($argv, 1);
+$command = 'php ' . escapeshellarg($gitSyncPath);
+
+if (!empty($args)) {
+    foreach ($args as $arg) {
+        if (strpos($arg, ' ') !== false && strpos($arg, '=') === false) {
+            $command .= ' ' . escapeshellarg($arg);
+        } else {
+            $command .= ' ' . escapeshellarg($arg);
+        }
+    }
+}
+
+passthru($command, $exitCode);
+exit($exitCode);

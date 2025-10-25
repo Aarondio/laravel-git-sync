@@ -1,0 +1,396 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * Laravel Git Sync - Standalone Global Binary
+ *
+ * This script works in two modes:
+ * 1. Global Installation: composer global require aaronidikko/laravel-git-sync
+ * 2. Per-Project Installation: composer require aaronidikko/laravel-git-sync
+ *
+ * Usage:
+ *   git-sync                           # Default chore message
+ *   git-sync -m "Custom message"       # With custom message
+ *   git-sync --commit-only             # Commit without push
+ *   git-sync --dry-run                 # Preview changes
+ */
+
+class GitSync
+{
+    private $isLaravelProject = false;
+    private $artisanPath = null;
+    private $projectRoot = null;
+
+    public function __construct()
+    {
+        $this->detectEnvironment();
+    }
+
+    /**
+     * Detect if we're in a Laravel project
+     */
+    private function detectEnvironment()
+    {
+        // Check current directory and parents for artisan file
+        $currentDir = getcwd();
+        $checkDir = $currentDir;
+
+        // Go up maximum 5 levels to find artisan
+        for ($i = 0; $i < 5; $i++) {
+            $artisanPath = $checkDir . '/artisan';
+            $composerPath = $checkDir . '/composer.json';
+
+            if (file_exists($artisanPath) && file_exists($composerPath)) {
+                // Verify it's a Laravel project by checking composer.json
+                $composer = json_decode(file_get_contents($composerPath), true);
+                if (isset($composer['require']['laravel/framework']) ||
+                    isset($composer['require-dev']['laravel/framework'])) {
+                    $this->isLaravelProject = true;
+                    $this->artisanPath = $artisanPath;
+                    $this->projectRoot = $checkDir;
+                    return;
+                }
+            }
+
+            $parentDir = dirname($checkDir);
+            if ($parentDir === $checkDir) {
+                break; 
+            }
+            $checkDir = $parentDir;
+        }
+    }
+
+    /**
+     * Run the git sync command
+     */
+    public function run($args)
+    {
+        if ($this->isLaravelProject) {
+            return $this->runLaravelCommand($args);
+        } else {
+            return $this->runStandaloneCommand($args);
+        }
+    }
+
+    /**
+     * Run via Laravel's artisan command
+     */
+    private function runLaravelCommand($args)
+    {
+        $command = 'php ' . escapeshellarg($this->artisanPath) . ' git:sync';
+
+        if (!empty($args)) {
+            foreach ($args as $arg) {
+                if (strpos($arg, ' ') !== false && strpos($arg, '=') === false) {
+                    $command .= ' ' . escapeshellarg($arg);
+                } else {
+                    $command .= ' ' . $arg;
+                }
+            }
+        }
+
+        passthru($command, $exitCode);
+        return $exitCode;
+    }
+
+    /**
+     * Run standalone git commands (not in a Laravel project)
+     */
+    private function runStandaloneCommand($args)
+    {
+        echo "Git Sync (Standalone Mode)\n";
+        echo "\n";
+
+        // Parse arguments
+        $options = $this->parseArguments($args);
+
+        // Check if we're in a git repository
+        if (!$this->isGitRepository()) {
+            echo "\033[31mError: Not a git repository.\033[0m\n";
+            echo "Initialize git first: git init\n";
+            return 1;
+        }
+
+        // Dry run mode
+        if ($options['dry-run']) {
+            return $this->dryRun($options);
+        }
+
+        // Push-only mode
+        if ($options['push-only']) {
+            return $this->pushOnly($options);
+        }
+
+        // Stage changes
+        if (!$this->stageChanges($options)) {
+            return 1;
+        }
+
+        // Check for changes
+        if (!$this->hasChangesToCommit()) {
+            echo "No changes to commit. Working tree is clean.\n";
+            return 0;
+        }
+
+        // Commit changes
+        if (!$this->commitChanges($options)) {
+            return 1;
+        }
+
+        // Push changes (unless commit-only)
+        if (!$options['commit-only']) {
+            return $this->pushChanges($options);
+        }
+
+        echo "\n✓ Done! Changes committed successfully.\n";
+        return 0;
+    }
+
+    /**
+     * Parse command line arguments
+     */
+    private function parseArguments($args)
+    {
+        $options = [
+            'message' => null,
+            'branch' => null,
+            'commit-only' => false,
+            'push-only' => false,
+            'dry-run' => false,
+            'verbose' => false,
+        ];
+
+        for ($i = 0; $i < count($args); $i++) {
+            $arg = $args[$i];
+
+            if ($arg === '-m' && isset($args[$i + 1])) {
+                $options['message'] = $args[$i + 1];
+                $i++;
+            } elseif ($arg === '--message' && isset($args[$i + 1])) {
+                $options['message'] = $args[$i + 1];
+                $i++;
+            } elseif (strpos($arg, '--message=') === 0) {
+                $options['message'] = substr($arg, 10);
+            } elseif ($arg === '--branch' && isset($args[$i + 1])) {
+                $options['branch'] = $args[$i + 1];
+                $i++;
+            } elseif (strpos($arg, '--branch=') === 0) {
+                $options['branch'] = substr($arg, 9);
+            } elseif ($arg === '--commit-only') {
+                $options['commit-only'] = true;
+            } elseif ($arg === '--push-only') {
+                $options['push-only'] = true;
+            } elseif ($arg === '--dry-run') {
+                $options['dry-run'] = true;
+            } elseif ($arg === '--verbose') {
+                $options['verbose'] = true;
+            }
+        }
+
+        return $options;
+    }
+
+    /**
+     * Check if current directory is a git repository
+     */
+    private function isGitRepository()
+    {
+        exec('git rev-parse --git-dir 2>&1', $output, $exitCode);
+        return $exitCode === 0;
+    }
+
+    /**
+     * Stage all changes
+     */
+    private function stageChanges($options)
+    {
+        echo "Staging changes...\n";
+
+        exec('git add . 2>&1', $output, $exitCode);
+
+        if ($exitCode !== 0) {
+            echo "\033[31mFailed to stage changes.\033[0m\n";
+            if ($options['verbose']) {
+                echo implode("\n", $output) . "\n";
+            }
+            return false;
+        }
+
+        if ($options['verbose']) {
+            exec('git status --short', $statusOutput);
+            echo implode("\n", $statusOutput) . "\n";
+        }
+
+        echo "Changes staged\n";
+        return true;
+    }
+
+    /**
+     * Check if there are changes to commit
+     */
+    private function hasChangesToCommit()
+    {
+        exec('git diff --cached --quiet', $output, $exitCode);
+        return $exitCode !== 0;
+    }
+
+    /**
+     * Commit changes
+     */
+    private function commitChanges($options)
+    {
+        $message = $options['message'] ?? $this->generateDefaultMessage();
+
+        echo "💾 Committing changes...\n";
+
+        if ($options['verbose']) {
+            echo "Message: {$message}\n";
+        }
+
+        exec('git commit -m ' . escapeshellarg($message) . ' 2>&1', $output, $exitCode);
+
+        if ($exitCode !== 0) {
+            echo "\033[31mFailed to commit changes.\033[0m\n";
+            if ($options['verbose']) {
+                echo implode("\n", $output) . "\n";
+            }
+            return false;
+        }
+
+        echo "✓ Changes committed\n";
+
+        if ($options['verbose']) {
+            echo implode("\n", $output) . "\n";
+        }
+
+        return true;
+    }
+
+    /**
+     * Push changes to remote
+     */
+    private function pushChanges($options)
+    {
+        echo "⬆️  Pushing to remote...\n";
+
+        $branch = $options['branch'] ?? $this->getCurrentBranch();
+
+        if (!$branch) {
+            echo "\033[31mCould not determine current branch.\033[0m\n";
+            return 1;
+        }
+
+        if ($options['verbose']) {
+            echo "Branch: {$branch}\n";
+        }
+
+        if (!$this->hasRemote()) {
+            echo "\033[31mNo remote repository configured.\033[0m\n";
+            echo "Hint: Add a remote with: git remote add origin <url>\n";
+            return 1;
+        }
+
+        exec('git push origin ' . escapeshellarg($branch) . ' 2>&1', $output, $exitCode);
+
+        if ($exitCode !== 0) {
+            $errorOutput = implode("\n", $output);
+
+            if (strpos($errorOutput, 'has no upstream branch') !== false) {
+                echo "Setting upstream branch...\n";
+                exec('git push -u origin ' . escapeshellarg($branch) . ' 2>&1', $output, $exitCode);
+
+                if ($exitCode === 0) {
+                    echo "✓ Changes pushed successfully\n";
+                    echo "\n✓ Done!\n";
+                    return 0;
+                }
+            }
+
+            echo "\033[31mFailed to push changes.\033[0m\n";
+            if ($options['verbose']) {
+                echo $errorOutput . "\n";
+            }
+            return 1;
+        }
+
+        echo "✓ Changes pushed successfully\n";
+
+        if ($options['verbose']) {
+            echo implode("\n", $output) . "\n";
+        }
+
+        echo "\n✓ Done!\n";
+        return 0;
+    }
+
+    /**
+     * Push-only mode
+     */
+    private function pushOnly($options)
+    {
+        return $this->pushChanges($options);
+    }
+
+    /**
+     * Dry run mode
+     */
+    private function dryRun($options)
+    {
+        echo "[DRY RUN] Would execute:\n";
+
+        if (!$options['push-only']) {
+            echo "  - git add .\n";
+
+            if ($this->hasChangesToCommit() || true) {
+                $message = $options['message'] ?? $this->generateDefaultMessage();
+                echo "  - git commit -m \"{$message}\"\n";
+            }
+        }
+
+        if (!$options['commit-only']) {
+            $branch = $options['branch'] ?? $this->getCurrentBranch();
+            echo "  - git push origin {$branch}\n";
+        }
+
+        echo "\n✓ Dry run completed.\n";
+        return 0;
+    }
+
+    /**
+     * Generate default commit message
+     */
+    private function generateDefaultMessage()
+    {
+        $timestamp = date('Y-m-d H:i');
+        return "chore: {$timestamp}";
+    }
+
+    /**
+     * Get current branch
+     */
+    private function getCurrentBranch()
+    {
+        exec('git branch --show-current 2>&1', $output, $exitCode);
+
+        if ($exitCode !== 0) {
+            return null;
+        }
+
+        return trim(implode('', $output));
+    }
+
+    /**
+     * Check if remote exists
+     */
+    private function hasRemote()
+    {
+        exec('git remote 2>&1', $output, $exitCode);
+        return $exitCode === 0 && !empty(trim(implode('', $output)));
+    }
+}
+
+// Run the application
+$args = array_slice($argv, 1);
+$gitSync = new GitSync();
+$exitCode = $gitSync->run($args);
+exit($exitCode);

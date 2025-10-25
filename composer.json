@@ -1,0 +1,42 @@
+{
+  "name": "aaronidikko/laravel-git-sync",
+  "description": "A Laravel package to commit and push changes to Git with one command.",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Aaronidikko\\GitSync\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Aaronidikko\\GitSync\\Tests\\": "tests/"
+    }
+  },
+  "require": {
+    "php": "^8.2",
+    "illuminate/support": "^10.0|^11.0|^12.0",
+    "illuminate/console": "^10.0|^11.0|^12.0"
+  },
+  "require-dev": {
+    "orchestra/testbench": "^8.0|^9.0",
+    "phpunit/phpunit": "^10.0|^11.0"
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Aaronidikko\\GitSync\\GitSyncServiceProvider"
+      ]
+    }
+  },
+  "bin": [
+    "bin/git-sync",
+    "bin/sync"
+  ],
+  "scripts": {
+    "test": "phpunit",
+    "sync": "bin/sync"
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}

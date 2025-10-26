@@ -208,6 +208,7 @@ git-sync --branch=develop
 composer sync -- -m "Add new feature"
 composer sync -- --commit-only
 composer sync -- --dry-run
+composer sync -- --branch=develop
 ```
 
 **Examples with artisan (Per-Project):**
@@ -215,6 +216,7 @@ composer sync -- --dry-run
 php artisan git:sync -m "Add new feature"
 php artisan git:sync --commit-only
 php artisan git:sync --dry-run
+php artisan git:sync --branch=develop
 ```
 
 

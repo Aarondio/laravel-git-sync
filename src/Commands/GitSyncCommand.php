@@ -18,8 +18,7 @@ class GitSyncCommand extends Command
                             {--branch= : Specify branch to push to}
                             {--commit-only : Only commit, do not push}
                             {--push-only : Only push existing commits}
-                            {--dry-run : Show what would be done without executing}
-                            {--verbose : Show detailed output}';
+                            {--dry-run : Show what would be done without executing}';
 
     /**
      * The console command description.
@@ -50,7 +49,7 @@ class GitSyncCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info('=€ Laravel Git Sync');
+        $this->info('=ï¿½ Laravel Git Sync');
         $this->newLine();
 
         // Push-only mode
@@ -98,7 +97,7 @@ class GitSyncCommand extends Command
      */
     protected function stageChanges(bool $dryRun, bool $verbose): bool
     {
-        $this->line('=æ Staging changes...');
+        $this->line('=ï¿½ Staging changes...');
 
         if ($dryRun) {
             $this->info('[DRY RUN] Would execute: git add .');
@@ -140,7 +139,7 @@ class GitSyncCommand extends Command
     {
         $message = $this->getCommitMessage();
 
-        $this->line('=¾ Committing changes...');
+        $this->line('=ï¿½ Committing changes...');
 
         if ($verbose) {
             $this->line("Message: {$message}");

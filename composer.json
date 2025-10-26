@@ -35,7 +35,13 @@
   ],
   "scripts": {
     "test": "phpunit",
-    "sync": "bin/sync"
+    "sync": "bin/sync",
+    "post-install-cmd": [
+      "@php scripts/post-install.php"
+    ],
+    "post-update-cmd": [
+      "@php scripts/post-install.php"
+    ]
   },
   "minimum-stability": "stable",
   "prefer-stable": true

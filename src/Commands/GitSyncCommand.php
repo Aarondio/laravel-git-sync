@@ -64,7 +64,7 @@ class GitSyncCommand extends Command
 
         // Check if there are changes to commit
         if (!$this->hasChangesToCommit()) {
-            $this->info(' No changes to commit. Working tree is clean.');
+            $this->info('No changes to commit. Working tree is clean.');
             return self::SUCCESS;
         }
 
@@ -79,7 +79,7 @@ class GitSyncCommand extends Command
         }
 
         $this->newLine();
-        $this->info(' Done! Changes committed successfully.');
+        $this->info('Done! Changes committed successfully.');
         return self::SUCCESS;
     }
 
@@ -119,7 +119,7 @@ class GitSyncCommand extends Command
             $this->line($result->output());
         }
 
-        $this->info(' Changes staged');
+        $this->info('Changes staged');
         return true;
     }
 
@@ -160,7 +160,7 @@ class GitSyncCommand extends Command
             return false;
         }
 
-        $this->info(' Changes committed');
+        $this->info('Changes committed');
 
         if ($verbose) {
             $this->line($result->output());
@@ -174,7 +174,7 @@ class GitSyncCommand extends Command
      */
     protected function pushChanges(bool $dryRun, bool $verbose): int
     {
-        $this->line('  Pushing to remote...');
+        $this->line('Pushing to remote...');
 
         // Get current branch
         $branch = $this->option('branch') ?? $this->getCurrentBranch();
@@ -198,7 +198,7 @@ class GitSyncCommand extends Command
         if ($dryRun) {
             $this->info("[DRY RUN] Would execute: git push origin {$branch}");
             $this->newLine();
-            $this->info(' Dry run completed successfully.');
+            $this->info('Dry run completed successfully.');
             return self::SUCCESS;
         }
 
@@ -216,9 +216,9 @@ class GitSyncCommand extends Command
                 $result = Process::run(['git', 'push', '-u', 'origin', $branch]);
 
                 if ($result->successful()) {
-                    $this->info(' Changes pushed successfully');
+                    $this->info('Changes pushed successfully');
                     $this->newLine();
-                    $this->info(' Done!');
+                    $this->info('Done!');
                     return self::SUCCESS;
                 }
             } else {
@@ -232,7 +232,7 @@ class GitSyncCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info(' Changes pushed successfully');
+        $this->info('Changes pushed successfully');
 
         if ($verbose) {
             $this->line($result->output());
@@ -240,7 +240,7 @@ class GitSyncCommand extends Command
         }
 
         $this->newLine();
-        $this->info(' Done!');
+        $this->info('Done!');
 
         return self::SUCCESS;
     }

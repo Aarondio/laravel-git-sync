@@ -386,7 +386,7 @@ If you find this package helpful, please consider:
 
 ## Changelog
 
-### Version 1.1.0
+### Version 1.2.0
 - Added `--pull` option to pull remote changes before pushing
 - Prevents commit history issues when remote has new commits
 - Works with both rebase and merge strategies

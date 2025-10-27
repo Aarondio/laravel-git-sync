@@ -32,10 +32,11 @@ php artisan git:sync -m "New feature"    # Custom message
 - **Dual Installation Modes**: Install globally or per-project
 - **Single command** to stage, commit, and push changes
 - **Custom or auto-generated** timestamped commit messages
-- **Multiple workflows**: commit-only, push-only, dry-run modes
+- **Multiple workflows**: commit-only, push-only, pull-before-push, dry-run modes
 - **Comprehensive error handling** for common Git scenarios
 - **Configurable** commit message prefixes and timestamp formats
 - **Automatic branch detection** and upstream setup
+- **Pull integration**: Optionally pull remote changes before pushing
 - **Verbose mode** for detailed output
 - **Works in non-Laravel projects** (when installed globally)
 
@@ -126,6 +127,7 @@ git-sync --message="Fix authentication bug"
 # Other options
 git-sync --verbose
 git-sync --commit-only
+git-sync --pull
 git-sync --dry-run
 git-sync --branch=develop
 ```
@@ -145,6 +147,7 @@ composer sync -- --message="Fix authentication bug"
 # Other options
 composer sync -- --verbose
 composer sync -- --commit-only
+composer sync -- --pull
 composer sync -- --dry-run
 ```
 
@@ -163,6 +166,7 @@ php artisan git:sync --message="Fix bug"
 # Other options
 php artisan git:sync --verbose
 php artisan git:sync --commit-only
+php artisan git:sync --pull
 php artisan git:sync --dry-run
 ```
 
@@ -190,6 +194,7 @@ All commands support the same options:
 | `--message="text"` | `-m "text"` | Custom commit message |
 | `--commit-only` | - | Commit without pushing |
 | `--push-only` | - | Push without committing |
+| `--pull` | - | Pull changes from remote before pushing |
 | `--dry-run` | - | Preview actions without executing |
 | `--verbose` | - | Show detailed output |
 | `--branch=name` | - | Push to specific branch |
@@ -198,6 +203,7 @@ All commands support the same options:
 ```bash
 git-sync -m "Add new feature"
 git-sync --commit-only
+git-sync --pull
 git-sync --dry-run
 git-sync --verbose
 git-sync --branch=develop
@@ -207,6 +213,7 @@ git-sync --branch=develop
 ```bash
 composer sync -- -m "Add new feature"
 composer sync -- --commit-only
+composer sync -- --pull
 composer sync -- --dry-run
 composer sync -- --branch=develop
 ```
@@ -215,6 +222,7 @@ composer sync -- --branch=develop
 ```bash
 php artisan git:sync -m "Add new feature"
 php artisan git:sync --commit-only
+php artisan git:sync --pull
 php artisan git:sync --dry-run
 php artisan git:sync --branch=develop
 ```
@@ -309,6 +317,29 @@ git-sync -m "Quick update"
 
 **Note:** Configuration options (custom prefixes, timestamp format, etc.) only work in Laravel projects with the config file published.
 
+## Handling Remote Changes
+
+When the remote repository has commits that you don't have locally, you need to pull those changes before pushing. The `--pull` option handles this automatically:
+
+**Global:**
+```bash
+# Pull and then push in one command
+git-sync --pull -m "Update feature"
+
+# With verbose output to see what's happening
+git-sync --pull --verbose
+```
+
+**Per-Project:**
+```bash
+composer sync -- --pull -m "Update feature"
+php artisan git:sync --pull -m "Update feature"
+```
+
+The pull respects your git configuration. If you have `pull.rebase=true` set, it will rebase your commits. Otherwise, it will merge.
+
+**Note:** If there are merge conflicts during the pull, the command will stop and prompt you to resolve them manually.
+
 ## Error Handling
 
 The package handles common Git scenarios:
@@ -316,7 +347,8 @@ The package handles common Git scenarios:
 - **Not a Git repository**: Prompts to initialize Git
 - **No remote configured**: Shows how to add a remote
 - **No upstream branch**: Automatically sets upstream
-- **Remote has changes**: Suggests pulling first
+- **Remote has changes**: Suggests pulling first (or use `--pull` option)
+- **Merge conflicts**: Stops and prompts to resolve manually
 - **No changes to commit**: Informs you the working tree is clean
 
 ## Requirements
@@ -353,6 +385,13 @@ If you find this package helpful, please consider:
 - Reporting issues or suggesting features
 
 ## Changelog
+
+### Version 1.2.0
+- Added `--pull` option to pull remote changes before pushing
+- Prevents commit history issues when remote has new commits
+- Works with both rebase and merge strategies
+- Handles merge conflicts gracefully
+- Available in all command modes (artisan, composer, global)
 
 ### Version 1.0.0
 - Initial release

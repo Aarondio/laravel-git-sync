@@ -26,13 +26,13 @@ git-sync -m "New feature"       # Custom message
 # Install in your Laravel project
 composer require aaronidikko/laravel-git-sync
 
-# Optional: Enable composer sync command (one-time setup)
-php artisan git:sync:install
-
-# Use it!
-composer sync                            # If you ran git:sync:install
-php artisan git:sync                     # Default chore message
+# Use it! (php artisan git:sync works immediately)
+php artisan git:sync                     # Always available after install
 php artisan git:sync -m "New feature"    # Custom message
+
+# Optional: Enable composer sync shortcut (one-time setup)
+php artisan git:sync:install
+composer sync                            # Now you can use this shortcut
 ```
 
 ## Features
@@ -68,24 +68,31 @@ composer require aaronidikko/laravel-git-sync
 
 **Optional: Enable `composer sync` (One-Time Setup)**
 
+The `php artisan git:sync` command is **automatically available** after installation. The install command below is **optional** and only adds a convenient `composer sync` shortcut.
+
 Run this command once to add a `composer sync` shortcut to your project:
 
 ```bash
 php artisan git:sync:install
 ```
 
-This automatically adds a `sync` script to your `composer.json`, allowing you to use:
+**What it does:**
+- Adds `"sync": "@php artisan git:sync"` to your project's `composer.json`
+- Creates a shortcut: `composer sync` → calls → `php artisan git:sync`
+- Does **not** affect the `php artisan git:sync` command (always works)
+
+After running install, you can use:
 ```bash
-composer sync                   # Instead of php artisan git:sync
+composer sync                   # Shortcut (calls php artisan git:sync)
 composer sync -- -m "message"   # With custom message
 composer sync -- --pull         # With options
 ```
 
-**Usage:**
+**Available Commands:**
 ```bash
-composer sync                   # If you ran git:sync:install
-php artisan git:sync            # Always available
-vendor/bin/git-sync             # Alternative
+composer sync                   # Only if you ran git:sync:install
+php artisan git:sync            # Always available (no setup needed)
+vendor/bin/git-sync             # Always available (no setup needed)
 ```
 
 ### Option 2: Global Installation (Recommended for Personal Use)
@@ -228,17 +235,19 @@ vendor/bin/git-sync --pull
 
 ### Optional: Add Composer Script Shortcut
 
-To use `composer sync` in your project, run this one-time setup command:
+**Note:** The `php artisan git:sync` command works immediately after installation. This section is **optional** and only adds a shorter `composer sync` alias.
+
+To enable `composer sync` in your project, run this one-time setup command:
 
 ```bash
 php artisan git:sync:install
 ```
 
-This automatically adds a `sync` script to your project's `composer.json`.
+This automatically adds `"sync": "@php artisan git:sync"` to your project's `composer.json`, creating a shortcut.
 
 Then use:
 ```bash
-composer sync
+composer sync                      # Calls php artisan git:sync
 composer sync -- -m "Custom message"
 composer sync -- --pull
 ```
@@ -257,6 +266,31 @@ All commands will:
 | Global | `git-sync` | Shortest, fastest |
 | Per-Project | `php artisan git:sync` | Standard Laravel convention |
 | Per-Project (Alt) | `vendor/bin/git-sync` | Direct binary access |
+| Per-Project (Optional) | `composer sync` | Requires running `git:sync:install` first |
+
+### Understanding the Commands
+
+**Q: What's the difference between `php artisan git:sync` and `composer sync`?**
+
+A: They do the exact same thing! `composer sync` is just a shortcut that internally calls `php artisan git:sync`.
+
+- `php artisan git:sync` - Available immediately after `composer require`
+- `composer sync` - Only available after running `php artisan git:sync:install` (one-time setup)
+
+**Q: Do I need to run `git:sync:install`?**
+
+A: No, it's completely optional! Use it only if you prefer typing `composer sync` instead of `php artisan git:sync`.
+
+**Q: What does `git:sync:install` do?**
+
+A: It adds this line to your project's `composer.json`:
+```json
+"scripts": {
+    "sync": "@php artisan git:sync"
+}
+```
+
+This creates a Composer script alias, nothing more.
 
 ### Command Options Reference
 

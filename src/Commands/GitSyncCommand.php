@@ -18,6 +18,7 @@ class GitSyncCommand extends Command
                             {--branch= : Specify branch to push to}
                             {--commit-only : Only commit, do not push}
                             {--push-only : Only push existing commits}
+                            {--pull : Pull changes from remote before pushing}
                             {--dry-run : Show what would be done without executing}';
 
     /**
@@ -174,8 +175,6 @@ class GitSyncCommand extends Command
      */
     protected function pushChanges(bool $dryRun, bool $verbose): int
     {
-        $this->line('Pushing to remote...');
-
         // Get current branch
         $branch = $this->option('branch') ?? $this->getCurrentBranch();
 
@@ -184,15 +183,25 @@ class GitSyncCommand extends Command
             return self::FAILURE;
         }
 
-        if ($verbose) {
-            $this->line("Branch: {$branch}");
-        }
-
         // Check if remote exists
         if (!$this->hasRemote()) {
             $this->error('No remote repository configured.');
             $this->line('Hint: Add a remote with: git remote add origin <url>');
             return self::FAILURE;
+        }
+
+        // Pull changes if --pull option is used
+        if ($this->option('pull')) {
+            if (!$this->pullChanges($branch, $dryRun, $verbose)) {
+                return self::FAILURE;
+            }
+            $this->newLine();
+        }
+
+        $this->line('Pushing to remote...');
+
+        if ($verbose) {
+            $this->line("Branch: {$branch}");
         }
 
         if ($dryRun) {
@@ -284,5 +293,54 @@ class GitSyncCommand extends Command
     {
         $result = Process::run('git remote');
         return $result->successful() && !empty(trim($result->output()));
+    }
+
+    /**
+     * Pull changes from remote.
+     */
+    protected function pullChanges(string $branch, bool $dryRun, bool $verbose): bool
+    {
+        $this->line('Pulling changes from remote...');
+
+        if ($verbose) {
+            $this->line("Branch: {$branch}");
+        }
+
+        if ($dryRun) {
+            $this->info("[DRY RUN] Would execute: git pull origin {$branch}");
+            return true;
+        }
+
+        $result = Process::run(['git', 'pull', 'origin', $branch]);
+
+        if (!$result->successful()) {
+            $errorOutput = $result->errorOutput();
+
+            // Check for merge conflicts
+            if (str_contains($errorOutput, 'CONFLICT')) {
+                $this->error('Pull failed due to merge conflicts.');
+                $this->line('Please resolve conflicts manually and try again.');
+                return false;
+            }
+
+            $this->error('Failed to pull changes from remote.');
+
+            if ($verbose) {
+                $this->line($errorOutput);
+            }
+
+            return false;
+        }
+
+        $this->info('Successfully pulled changes');
+
+        if ($verbose) {
+            $this->line($result->output());
+            if ($result->errorOutput()) {
+                $this->line($result->errorOutput());
+            }
+        }
+
+        return true;
     }
 }

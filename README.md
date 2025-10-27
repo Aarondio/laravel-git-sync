@@ -23,7 +23,7 @@ git-sync -m "New feature"       # Custom message
 composer require aaronidikko/laravel-git-sync
 
 # Use it!
-composer sync                        # Default chore message
+php artisan git:sync                     # Default chore message
 php artisan git:sync -m "New feature"    # Custom message
 ```
 
@@ -60,8 +60,8 @@ composer require aaronidikko/laravel-git-sync
 
 **Usage:**
 ```bash
-composer sync                    # Quick sync
-php artisan git:sync            # Alternative
+php artisan git:sync            # Recommended
+vendor/bin/git-sync             # Alternative
 ```
 
 ### Option 2: Global Installation (Recommended for Personal Use)
@@ -81,9 +81,8 @@ Make sure `~/.composer/vendor/bin` (or `~/.config/composer/vendor/bin` on some s
 
 **Usage:**
 ```bash
-git-sync                        # From any Laravel project
+git-sync                        # From any directory
 git-sync -m "New feature"       # Works globally
-composer sync                   # Also works if installed per-project
 ```
 
 ### Publishing Configuration (Per-Project Only)
@@ -100,7 +99,7 @@ This creates `config/git-sync.php` where you can customize commit message format
 
 | Feature | Global Installation | Per-Project Installation |
 |---------|-------------------|-------------------------|
-| **Command** | `git-sync` | `composer sync` or `php artisan git:sync` |
+| **Command** | `git-sync` | `php artisan git:sync` or `vendor/bin/git-sync` |
 | **Install Once** | ✅ Yes, use everywhere | ❌ No, per project |
 | **Team Sharing** | ❌ Manual install for each | ✅ Auto via composer.json |
 | **Config File** | ❌ Not available | ✅ Customizable |
@@ -110,7 +109,7 @@ This creates `config/git-sync.php` where you can customize commit message format
 
 ## Usage
 
-The package provides three ways to sync your changes:
+The package provides different commands based on installation type:
 
 ### 1. Global Command (If Installed Globally)
 
@@ -132,28 +131,9 @@ git-sync --dry-run
 git-sync --branch=develop
 ```
 
-### 2. Composer Script (Per-Project or Global)
+### 2. Artisan Command (Per-Project Installation)
 
-Works with both installation methods:
-
-```bash
-# Default chore message
-composer sync
-
-# With custom message (note the -- separator for per-project)
-composer sync -- -m "New Feature"
-composer sync -- --message="Fix authentication bug"
-
-# Other options
-composer sync -- --verbose
-composer sync -- --commit-only
-composer sync -- --pull
-composer sync -- --dry-run
-```
-
-### 3. Artisan Command (Per-Project Only)
-
-Traditional Laravel command:
+Standard Laravel command:
 
 ```bash
 # Default chore message
@@ -170,6 +150,41 @@ php artisan git:sync --pull
 php artisan git:sync --dry-run
 ```
 
+### 3. Direct Binary (Per-Project Installation)
+
+Alternative for per-project installations:
+
+```bash
+# Default chore message
+vendor/bin/git-sync
+
+# With custom message
+vendor/bin/git-sync -m "Add new feature"
+
+# Other options
+vendor/bin/git-sync --verbose
+vendor/bin/git-sync --pull
+```
+
+### Optional: Add Composer Script Shortcut
+
+To use `composer sync` in your project, add this to your project's `composer.json`:
+
+```json
+{
+    "scripts": {
+        "sync": "php artisan git:sync"
+    }
+}
+```
+
+Then use:
+```bash
+composer sync
+composer sync -- -m "Custom message"
+composer sync -- --pull
+```
+
 ### How It Works
 
 All commands will:
@@ -182,8 +197,8 @@ All commands will:
 | Installation Type | Recommended Command | Why? |
 |------------------|---------------------|------|
 | Global | `git-sync` | Shortest, fastest |
-| Per-Project (Solo) | `composer sync` | Quick, no artisan prefix |
-| Per-Project (Team) | `php artisan git:sync` | Clear, discoverable |
+| Per-Project | `php artisan git:sync` | Standard Laravel convention |
+| Per-Project (Alt) | `vendor/bin/git-sync` | Direct binary access |
 
 ### Command Options Reference
 
@@ -209,15 +224,6 @@ git-sync --verbose
 git-sync --branch=develop
 ```
 
-**Examples with composer sync (Per-Project):**
-```bash
-composer sync -- -m "Add new feature"
-composer sync -- --commit-only
-composer sync -- --pull
-composer sync -- --dry-run
-composer sync -- --branch=develop
-```
-
 **Examples with artisan (Per-Project):**
 ```bash
 php artisan git:sync -m "Add new feature"
@@ -225,6 +231,13 @@ php artisan git:sync --commit-only
 php artisan git:sync --pull
 php artisan git:sync --dry-run
 php artisan git:sync --branch=develop
+```
+
+**Examples with vendor/bin (Per-Project):**
+```bash
+vendor/bin/git-sync -m "Add new feature"
+vendor/bin/git-sync --pull
+vendor/bin/git-sync --verbose
 ```
 
 
@@ -283,13 +296,13 @@ git-sync --commit-only
 **With Per-Project Installation:**
 ```bash
 # Quick save
-composer sync
+php artisan git:sync
 
 # With message
-composer sync -- -m "Implement user authentication"
-
-# Or use artisan
 php artisan git:sync -m "Implement user authentication"
+
+# Or use direct binary
+vendor/bin/git-sync -m "Implement user authentication"
 ```
 
 ### Working with Feature Branches
@@ -302,7 +315,7 @@ git-sync --branch=feature/new-ui -m "Update UI components"
 
 **Per-Project:**
 ```bash
-composer sync -- -m "Add feature X"
+php artisan git:sync -m "Add feature X"
 php artisan git:sync --branch=feature/new-ui -m "Update UI components"
 ```
 
@@ -332,8 +345,8 @@ git-sync --pull --verbose
 
 **Per-Project:**
 ```bash
-composer sync -- --pull -m "Update feature"
 php artisan git:sync --pull -m "Update feature"
+vendor/bin/git-sync --pull -m "Update feature"
 ```
 
 The pull respects your git configuration. If you have `pull.rebase=true` set, it will rebase your commits. Otherwise, it will merge.

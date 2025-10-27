@@ -99,7 +99,8 @@ class GitSync
      */
     private function runStandaloneCommand($args)
     {
-        echo "Git Sync (Standalone Mode)\n";
+        echo "Laravel Git Sync\n";
+        echo "https://github.com/Aarondio/laravel-git-sync\n";
         echo "\n";
 
         // Parse arguments
@@ -143,7 +144,7 @@ class GitSync
             return $this->pushChanges($options);
         }
 
-        echo "\n✓ Done! Changes committed successfully.\n";
+        echo "\n[OK] Done! Changes committed successfully.\n";
         return 0;
     }
 
@@ -245,7 +246,7 @@ class GitSync
     {
         $message = $options['message'] ?? $this->generateDefaultMessage();
 
-        echo "💾 Committing changes...\n";
+        echo "[*] Committing changes...\n";
 
         if ($options['verbose']) {
             echo "Message: {$message}\n";
@@ -261,7 +262,7 @@ class GitSync
             return false;
         }
 
-        echo "✓ Changes committed\n";
+        echo "[OK] Changes committed\n";
 
         if ($options['verbose']) {
             echo implode("\n", $output) . "\n";
@@ -296,7 +297,7 @@ class GitSync
             echo "\n";
         }
 
-        echo "⬆️  Pushing to remote...\n";
+        echo "[*] Pushing to remote...\n";
 
         if ($options['verbose']) {
             echo "Branch: {$branch}\n";
@@ -312,8 +313,8 @@ class GitSync
                 exec('git push -u origin ' . escapeshellarg($branch) . ' 2>&1', $output, $exitCode);
 
                 if ($exitCode === 0) {
-                    echo "✓ Changes pushed successfully\n";
-                    echo "\n✓ Done!\n";
+                    echo "[OK] Changes pushed successfully\n";
+                    echo "\n[OK] Done!\n";
                     return 0;
                 }
             }
@@ -325,13 +326,13 @@ class GitSync
             return 1;
         }
 
-        echo "✓ Changes pushed successfully\n";
+        echo "[OK] Changes pushed successfully\n";
 
         if ($options['verbose']) {
             echo implode("\n", $output) . "\n";
         }
 
-        echo "\n✓ Done!\n";
+        echo "\n[OK] Done!\n";
         return 0;
     }
 
@@ -369,7 +370,7 @@ class GitSync
             echo "  - git push origin {$branch}\n";
         }
 
-        echo "\n✓ Dry run completed.\n";
+        echo "\n[OK] Dry run completed.\n";
         return 0;
     }
 
@@ -417,7 +418,7 @@ class GitSync
             return false;
         }
 
-        echo "⬇️  Pulling changes from remote...\n";
+        echo "[*] Pulling changes from remote...\n";
 
         if ($options['verbose']) {
             echo "Branch: {$branch}\n";
@@ -442,7 +443,7 @@ class GitSync
             return false;
         }
 
-        echo "✓ Successfully pulled changes\n";
+        echo "[OK] Successfully pulled changes\n";
 
         if ($options['verbose']) {
             echo implode("\n", $output) . "\n";

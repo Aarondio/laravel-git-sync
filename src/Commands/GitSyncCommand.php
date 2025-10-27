@@ -50,7 +50,8 @@ class GitSyncCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info('=� Laravel Git Sync');
+        $this->info('Laravel Git Sync');
+        $this->line('https://github.com/Aarondio/laravel-git-sync');
         $this->newLine();
 
         // Push-only mode
@@ -98,7 +99,7 @@ class GitSyncCommand extends Command
      */
     protected function stageChanges(bool $dryRun, bool $verbose): bool
     {
-        $this->line('=� Staging changes...');
+        $this->line('[*] Staging changes...');
 
         if ($dryRun) {
             $this->info('[DRY RUN] Would execute: git add .');
@@ -140,7 +141,7 @@ class GitSyncCommand extends Command
     {
         $message = $this->getCommitMessage();
 
-        $this->line('=� Committing changes...');
+        $this->line('[*] Committing changes...');
 
         if ($verbose) {
             $this->line("Message: {$message}");

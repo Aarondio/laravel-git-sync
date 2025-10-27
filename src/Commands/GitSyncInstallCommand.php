@@ -44,7 +44,7 @@ class GitSyncInstallCommand extends Command
             $existingScript = $composer['scripts']['sync'];
 
             if ($existingScript === 'php artisan git:sync' || $existingScript === '@php artisan git:sync') {
-                $this->info('✓ The "composer sync" command is already configured!');
+                $this->info('[OK] The "composer sync" command is already configured!');
                 return self::SUCCESS;
             }
 
@@ -78,7 +78,7 @@ class GitSyncInstallCommand extends Command
         }
 
         $this->newLine();
-        $this->info('✓ Successfully added "composer sync" command to your project!');
+        $this->info('[OK] Successfully added "composer sync" command to your project!');
         $this->newLine();
         $this->line('You can now use:');
         $this->line('  <fg=green>composer sync</>                    # Quick sync');

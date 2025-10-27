@@ -26,7 +26,11 @@ git-sync -m "New feature"       # Custom message
 # Install in your Laravel project
 composer require aaronidikko/laravel-git-sync
 
+# Optional: Enable composer sync command (one-time setup)
+php artisan git:sync:install
+
 # Use it!
+composer sync                            # If you ran git:sync:install
 php artisan git:sync                     # Default chore message
 php artisan git:sync -m "New feature"    # Custom message
 ```
@@ -62,9 +66,25 @@ composer require aaronidikko/laravel-git-sync
 - Configuration can be version-controlled
 - Consistent across the team
 
+**Optional: Enable `composer sync` (One-Time Setup)**
+
+Run this command once to add a `composer sync` shortcut to your project:
+
+```bash
+php artisan git:sync:install
+```
+
+This automatically adds a `sync` script to your `composer.json`, allowing you to use:
+```bash
+composer sync                   # Instead of php artisan git:sync
+composer sync -- -m "message"   # With custom message
+composer sync -- --pull         # With options
+```
+
 **Usage:**
 ```bash
-php artisan git:sync            # Recommended
+composer sync                   # If you ran git:sync:install
+php artisan git:sync            # Always available
 vendor/bin/git-sync             # Alternative
 ```
 
@@ -208,15 +228,13 @@ vendor/bin/git-sync --pull
 
 ### Optional: Add Composer Script Shortcut
 
-To use `composer sync` in your project, add this to your project's `composer.json`:
+To use `composer sync` in your project, run this one-time setup command:
 
-```json
-{
-    "scripts": {
-        "sync": "php artisan git:sync"
-    }
-}
+```bash
+php artisan git:sync:install
 ```
+
+This automatically adds a `sync` script to your project's `composer.json`.
 
 Then use:
 ```bash
@@ -439,24 +457,22 @@ If you get this error after global installation, Composer's bin directory is not
 
 ### "Command sync is not defined" (Per-Project Installation)
 
-The `composer sync` command doesn't work automatically after installing the package.
+The `composer sync` command doesn't work automatically after installing the package. It requires a one-time setup.
 
 **Solution:**
 
-Use one of these commands instead:
+Run the install command to enable `composer sync`:
+```bash
+php artisan git:sync:install
+```
+
+This automatically adds the `sync` script to your `composer.json`.
+
+**Alternative:** Use these commands without setup:
 ```bash
 php artisan git:sync
 # or
 vendor/bin/git-sync
-```
-
-**Optional:** To enable `composer sync`, add this to your project's `composer.json`:
-```json
-{
-    "scripts": {
-        "sync": "php artisan git:sync"
-    }
-}
 ```
 
 ## Requirements
@@ -500,6 +516,8 @@ If you find this package helpful, please consider:
 - Works with both rebase and merge strategies
 - Handles merge conflicts gracefully
 - Available in all command modes (artisan, composer, global)
+- Added `php artisan git:sync:install` command for one-time composer sync setup
+- Automatically adds `composer sync` script to project's composer.json
 - Added comprehensive PATH setup instructions for global installation
 - Added troubleshooting section for common installation issues
 - Clarified usage commands for per-project vs global installation

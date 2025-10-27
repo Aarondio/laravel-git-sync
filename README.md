@@ -17,15 +17,19 @@ git-sync                        # Default chore message
 git-sync -m "New feature"       # Custom message
 ```
 
+**Note:** If you get "command not found: git-sync", see the [PATH setup instructions](#troubleshooting) below.
+
 **Per-Project Installation (Recommended for Teams):**
 ```bash
 # Install in your Laravel project
 composer require aaronidikko/laravel-git-sync
 
-# Use it!
-composer sync                        # Default chore message
+# Use it immediately!
+php artisan git:sync                     # Default chore message
 php artisan git:sync -m "New feature"    # Custom message
 ```
+
+**Optional:** Run `php artisan git:sync:install` to enable the shorter `composer sync` command. [Details below](#optional-add-composer-script-shortcut).
 
 ## Features
 
@@ -58,10 +62,33 @@ composer require aaronidikko/laravel-git-sync
 - Configuration can be version-controlled
 - Consistent across the team
 
-**Usage:**
+**Optional: Enable `composer sync` (One-Time Setup)**
+
+The `php artisan git:sync` command is **automatically available** after installation. The install command below is **optional** and only adds a convenient `composer sync` shortcut.
+
+Run this command once to add a `composer sync` shortcut to your project:
+
 ```bash
-composer sync                    # Quick sync
-php artisan git:sync            # Alternative
+php artisan git:sync:install
+```
+
+**What it does:**
+- Adds `"sync": "@php artisan git:sync"` to your project's `composer.json`
+- Creates a shortcut: `composer sync` → calls → `php artisan git:sync`
+- Does **not** affect the `php artisan git:sync` command (always works)
+
+After running install, you can use:
+```bash
+composer sync                   # Shortcut (calls php artisan git:sync)
+composer sync -- -m "message"   # With custom message
+composer sync -- --pull         # With options
+```
+
+**Available Commands:**
+```bash
+composer sync                   # Only if you ran git:sync:install
+php artisan git:sync            # Always available (no setup needed)
+vendor/bin/git-sync             # Always available (no setup needed)
 ```
 
 ### Option 2: Global Installation (Recommended for Personal Use)
@@ -72,7 +99,43 @@ Install once, use everywhere:
 composer global require aaronidikko/laravel-git-sync
 ```
 
-Make sure `~/.composer/vendor/bin` (or `~/.config/composer/vendor/bin` on some systems) is in your PATH.
+**Important: Add Composer's bin directory to your PATH**
+
+After installation, you need to add Composer's global bin directory to your PATH to use the `git-sync` command:
+
+**Step 1: Find your Composer bin directory**
+```bash
+composer global config bin-dir --absolute
+```
+This is usually `~/.composer/vendor/bin` or `~/.config/composer/vendor/bin`
+
+**Step 2: Add to PATH based on your shell**
+
+For **Bash** (add to `~/.bashrc` or `~/.bash_profile`):
+```bash
+echo 'export PATH="$HOME/.composer/vendor/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+For **Zsh** (add to `~/.zshrc`):
+```bash
+echo 'export PATH="$HOME/.composer/vendor/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+For **Fish** (add to `~/.config/fish/config.fish`):
+```bash
+fish_add_path ~/.composer/vendor/bin
+```
+
+**Step 3: Verify installation**
+```bash
+which git-sync
+# Should output: /Users/yourusername/.composer/vendor/bin/git-sync
+
+git-sync --help
+# Should show the help message
+```
 
 **Benefits:**
 - Install once, use in all Laravel projects
@@ -81,9 +144,8 @@ Make sure `~/.composer/vendor/bin` (or `~/.config/composer/vendor/bin` on some s
 
 **Usage:**
 ```bash
-git-sync                        # From any Laravel project
+git-sync                        # From any directory
 git-sync -m "New feature"       # Works globally
-composer sync                   # Also works if installed per-project
 ```
 
 ### Publishing Configuration (Per-Project Only)
@@ -100,7 +162,7 @@ This creates `config/git-sync.php` where you can customize commit message format
 
 | Feature | Global Installation | Per-Project Installation |
 |---------|-------------------|-------------------------|
-| **Command** | `git-sync` | `composer sync` or `php artisan git:sync` |
+| **Command** | `git-sync` | `php artisan git:sync` or `vendor/bin/git-sync` |
 | **Install Once** | ✅ Yes, use everywhere | ❌ No, per project |
 | **Team Sharing** | ❌ Manual install for each | ✅ Auto via composer.json |
 | **Config File** | ❌ Not available | ✅ Customizable |
@@ -110,7 +172,7 @@ This creates `config/git-sync.php` where you can customize commit message format
 
 ## Usage
 
-The package provides three ways to sync your changes:
+The package provides different commands based on installation type:
 
 ### 1. Global Command (If Installed Globally)
 
@@ -132,28 +194,9 @@ git-sync --dry-run
 git-sync --branch=develop
 ```
 
-### 2. Composer Script (Per-Project or Global)
+### 2. Artisan Command (Per-Project Installation)
 
-Works with both installation methods:
-
-```bash
-# Default chore message
-composer sync
-
-# With custom message (note the -- separator for per-project)
-composer sync -- -m "New Feature"
-composer sync -- --message="Fix authentication bug"
-
-# Other options
-composer sync -- --verbose
-composer sync -- --commit-only
-composer sync -- --pull
-composer sync -- --dry-run
-```
-
-### 3. Artisan Command (Per-Project Only)
-
-Traditional Laravel command:
+Standard Laravel command:
 
 ```bash
 # Default chore message
@@ -170,6 +213,41 @@ php artisan git:sync --pull
 php artisan git:sync --dry-run
 ```
 
+### 3. Direct Binary (Per-Project Installation)
+
+Alternative for per-project installations:
+
+```bash
+# Default chore message
+vendor/bin/git-sync
+
+# With custom message
+vendor/bin/git-sync -m "Add new feature"
+
+# Other options
+vendor/bin/git-sync --verbose
+vendor/bin/git-sync --pull
+```
+
+### Optional: Add Composer Script Shortcut
+
+**Note:** The `php artisan git:sync` command works immediately after installation. This section is **optional** and only adds a shorter `composer sync` alias.
+
+To enable `composer sync` in your project, run this one-time setup command:
+
+```bash
+php artisan git:sync:install
+```
+
+This automatically adds `"sync": "@php artisan git:sync"` to your project's `composer.json`, creating a shortcut.
+
+Then use:
+```bash
+composer sync                      # Calls php artisan git:sync
+composer sync -- -m "Custom message"
+composer sync -- --pull
+```
+
 ### How It Works
 
 All commands will:
@@ -182,8 +260,33 @@ All commands will:
 | Installation Type | Recommended Command | Why? |
 |------------------|---------------------|------|
 | Global | `git-sync` | Shortest, fastest |
-| Per-Project (Solo) | `composer sync` | Quick, no artisan prefix |
-| Per-Project (Team) | `php artisan git:sync` | Clear, discoverable |
+| Per-Project | `php artisan git:sync` | Standard Laravel convention |
+| Per-Project (Alt) | `vendor/bin/git-sync` | Direct binary access |
+| Per-Project (Optional) | `composer sync` | Requires running `git:sync:install` first |
+
+### Understanding the Commands
+
+**Q: What's the difference between `php artisan git:sync` and `composer sync`?**
+
+A: They do the exact same thing! `composer sync` is just a shortcut that internally calls `php artisan git:sync`.
+
+- `php artisan git:sync` - Available immediately after `composer require`
+- `composer sync` - Only available after running `php artisan git:sync:install` (one-time setup)
+
+**Q: Do I need to run `git:sync:install`?**
+
+A: No, it's completely optional! Use it only if you prefer typing `composer sync` instead of `php artisan git:sync`.
+
+**Q: What does `git:sync:install` do?**
+
+A: It adds this line to your project's `composer.json`:
+```json
+"scripts": {
+    "sync": "@php artisan git:sync"
+}
+```
+
+This creates a Composer script alias, nothing more.
 
 ### Command Options Reference
 
@@ -209,15 +312,6 @@ git-sync --verbose
 git-sync --branch=develop
 ```
 
-**Examples with composer sync (Per-Project):**
-```bash
-composer sync -- -m "Add new feature"
-composer sync -- --commit-only
-composer sync -- --pull
-composer sync -- --dry-run
-composer sync -- --branch=develop
-```
-
 **Examples with artisan (Per-Project):**
 ```bash
 php artisan git:sync -m "Add new feature"
@@ -225,6 +319,13 @@ php artisan git:sync --commit-only
 php artisan git:sync --pull
 php artisan git:sync --dry-run
 php artisan git:sync --branch=develop
+```
+
+**Examples with vendor/bin (Per-Project):**
+```bash
+vendor/bin/git-sync -m "Add new feature"
+vendor/bin/git-sync --pull
+vendor/bin/git-sync --verbose
 ```
 
 
@@ -283,13 +384,13 @@ git-sync --commit-only
 **With Per-Project Installation:**
 ```bash
 # Quick save
-composer sync
+php artisan git:sync
 
 # With message
-composer sync -- -m "Implement user authentication"
-
-# Or use artisan
 php artisan git:sync -m "Implement user authentication"
+
+# Or use direct binary
+vendor/bin/git-sync -m "Implement user authentication"
 ```
 
 ### Working with Feature Branches
@@ -302,7 +403,7 @@ git-sync --branch=feature/new-ui -m "Update UI components"
 
 **Per-Project:**
 ```bash
-composer sync -- -m "Add feature X"
+php artisan git:sync -m "Add feature X"
 php artisan git:sync --branch=feature/new-ui -m "Update UI components"
 ```
 
@@ -332,8 +433,8 @@ git-sync --pull --verbose
 
 **Per-Project:**
 ```bash
-composer sync -- --pull -m "Update feature"
 php artisan git:sync --pull -m "Update feature"
+vendor/bin/git-sync --pull -m "Update feature"
 ```
 
 The pull respects your git configuration. If you have `pull.rebase=true` set, it will rebase your commits. Otherwise, it will merge.
@@ -350,6 +451,59 @@ The package handles common Git scenarios:
 - **Remote has changes**: Suggests pulling first (or use `--pull` option)
 - **Merge conflicts**: Stops and prompts to resolve manually
 - **No changes to commit**: Informs you the working tree is clean
+
+## Troubleshooting
+
+### "command not found: git-sync" (Global Installation)
+
+If you get this error after global installation, Composer's bin directory is not in your PATH.
+
+**Solution:**
+
+1. Find your Composer bin directory:
+   ```bash
+   composer global config bin-dir --absolute
+   ```
+
+2. Add it to your PATH (choose based on your shell):
+
+   **For Bash:**
+   ```bash
+   echo 'export PATH="$HOME/.composer/vendor/bin:$PATH"' >> ~/.bashrc
+   source ~/.bashrc
+   ```
+
+   **For Zsh:**
+   ```bash
+   echo 'export PATH="$HOME/.composer/vendor/bin:$PATH"' >> ~/.zshrc
+   source ~/.zshrc
+   ```
+
+3. Verify it works:
+   ```bash
+   which git-sync
+   git-sync --help
+   ```
+
+### "Command sync is not defined" (Per-Project Installation)
+
+The `composer sync` command doesn't work automatically after installing the package. It requires a one-time setup.
+
+**Solution:**
+
+Run the install command to enable `composer sync`:
+```bash
+php artisan git:sync:install
+```
+
+This automatically adds the `sync` script to your `composer.json`.
+
+**Alternative:** Use these commands without setup:
+```bash
+php artisan git:sync
+# or
+vendor/bin/git-sync
+```
 
 ## Requirements
 
@@ -392,6 +546,11 @@ If you find this package helpful, please consider:
 - Works with both rebase and merge strategies
 - Handles merge conflicts gracefully
 - Available in all command modes (artisan, composer, global)
+- Added `php artisan git:sync:install` command for one-time composer sync setup
+- Automatically adds `composer sync` script to project's composer.json
+- Added comprehensive PATH setup instructions for global installation
+- Added troubleshooting section for common installation issues
+- Clarified usage commands for per-project vs global installation
 
 ### Version 1.0.0
 - Initial release

@@ -3,6 +3,7 @@
 namespace Aaronidikko\GitSync;
 
 use Aaronidikko\GitSync\Commands\GitSyncCommand;
+use Aaronidikko\GitSync\Commands\GitSyncInstallCommand;
 use Illuminate\Support\ServiceProvider;
 
 class GitSyncServiceProvider extends ServiceProvider
@@ -32,6 +33,7 @@ class GitSyncServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 GitSyncCommand::class,
+                GitSyncInstallCommand::class,
             ]);
         }
     }

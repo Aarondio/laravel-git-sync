@@ -12,28 +12,24 @@ A Laravel package that enables developers to commit and push code changes to Git
 # Install once
 composer global require aaronidikko/laravel-git-sync
 
-# Add to PATH (one-time setup - see Installation section for details)
-echo 'export PATH="$HOME/.composer/vendor/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
-
 # Use anywhere!
 git-sync                        # Default chore message
 git-sync -m "New feature"       # Custom message
 ```
+
+**Note:** If you get "command not found: git-sync", see the [PATH setup instructions](#troubleshooting) below.
 
 **Per-Project Installation (Recommended for Teams):**
 ```bash
 # Install in your Laravel project
 composer require aaronidikko/laravel-git-sync
 
-# Use it! (php artisan git:sync works immediately)
-php artisan git:sync                     # Always available after install
+# Use it immediately!
+php artisan git:sync                     # Default chore message
 php artisan git:sync -m "New feature"    # Custom message
-
-# Optional: Enable composer sync shortcut (one-time setup)
-php artisan git:sync:install
-composer sync                            # Now you can use this shortcut
 ```
+
+**Optional:** Run `php artisan git:sync:install` to enable the shorter `composer sync` command. [Details below](#optional-add-composer-script-shortcut).
 
 ## Features
 

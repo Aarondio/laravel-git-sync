@@ -12,6 +12,10 @@ A Laravel package that enables developers to commit and push code changes to Git
 # Install once
 composer global require aaronidikko/laravel-git-sync
 
+# Add to PATH (one-time setup - see Installation section for details)
+echo 'export PATH="$HOME/.composer/vendor/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+
 # Use anywhere!
 git-sync                        # Default chore message
 git-sync -m "New feature"       # Custom message
@@ -72,7 +76,43 @@ Install once, use everywhere:
 composer global require aaronidikko/laravel-git-sync
 ```
 
-Make sure `~/.composer/vendor/bin` (or `~/.config/composer/vendor/bin` on some systems) is in your PATH.
+**Important: Add Composer's bin directory to your PATH**
+
+After installation, you need to add Composer's global bin directory to your PATH to use the `git-sync` command:
+
+**Step 1: Find your Composer bin directory**
+```bash
+composer global config bin-dir --absolute
+```
+This is usually `~/.composer/vendor/bin` or `~/.config/composer/vendor/bin`
+
+**Step 2: Add to PATH based on your shell**
+
+For **Bash** (add to `~/.bashrc` or `~/.bash_profile`):
+```bash
+echo 'export PATH="$HOME/.composer/vendor/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+For **Zsh** (add to `~/.zshrc`):
+```bash
+echo 'export PATH="$HOME/.composer/vendor/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+For **Fish** (add to `~/.config/fish/config.fish`):
+```bash
+fish_add_path ~/.composer/vendor/bin
+```
+
+**Step 3: Verify installation**
+```bash
+which git-sync
+# Should output: /Users/yourusername/.composer/vendor/bin/git-sync
+
+git-sync --help
+# Should show the help message
+```
 
 **Benefits:**
 - Install once, use in all Laravel projects
@@ -364,6 +404,61 @@ The package handles common Git scenarios:
 - **Merge conflicts**: Stops and prompts to resolve manually
 - **No changes to commit**: Informs you the working tree is clean
 
+## Troubleshooting
+
+### "command not found: git-sync" (Global Installation)
+
+If you get this error after global installation, Composer's bin directory is not in your PATH.
+
+**Solution:**
+
+1. Find your Composer bin directory:
+   ```bash
+   composer global config bin-dir --absolute
+   ```
+
+2. Add it to your PATH (choose based on your shell):
+
+   **For Bash:**
+   ```bash
+   echo 'export PATH="$HOME/.composer/vendor/bin:$PATH"' >> ~/.bashrc
+   source ~/.bashrc
+   ```
+
+   **For Zsh:**
+   ```bash
+   echo 'export PATH="$HOME/.composer/vendor/bin:$PATH"' >> ~/.zshrc
+   source ~/.zshrc
+   ```
+
+3. Verify it works:
+   ```bash
+   which git-sync
+   git-sync --help
+   ```
+
+### "Command sync is not defined" (Per-Project Installation)
+
+The `composer sync` command doesn't work automatically after installing the package.
+
+**Solution:**
+
+Use one of these commands instead:
+```bash
+php artisan git:sync
+# or
+vendor/bin/git-sync
+```
+
+**Optional:** To enable `composer sync`, add this to your project's `composer.json`:
+```json
+{
+    "scripts": {
+        "sync": "php artisan git:sync"
+    }
+}
+```
+
 ## Requirements
 
 - PHP 8.2 or higher
@@ -405,6 +500,9 @@ If you find this package helpful, please consider:
 - Works with both rebase and merge strategies
 - Handles merge conflicts gracefully
 - Available in all command modes (artisan, composer, global)
+- Added comprehensive PATH setup instructions for global installation
+- Added troubleshooting section for common installation issues
+- Clarified usage commands for per-project vs global installation
 
 ### Version 1.0.0
 - Initial release

@@ -18,6 +18,8 @@ class GitSyncCommandTest extends TestCase
         // Setup default configuration
         $app['config']->set('git-sync.default_commit_prefix', 'chore');
         $app['config']->set('git-sync.timestamp_format', 'Y-m-d H:i');
+        $app['config']->set('git-sync.safety_checks.protected_branches', []);
+        $app['config']->set('git-sync.safety_checks.max_file_size', 10);
     }
 
     /** @test */
@@ -41,9 +43,10 @@ class GitSyncCommandTest extends TestCase
     {
         Process::fake([
             'git rev-parse --git-dir' => Process::result(output: '.git'),
-            'git add .' => Process::result(),
-            'git diff --cached --quiet' => Process::result(exitCode: 1), // Has changes
             'git branch --show-current' => Process::result(output: 'main'),
+            'git status --porcelain' => Process::result(output: ''),
+            'git add .' => Process::result(),
+            'git diff --cached --quiet' => Process::result(exitCode: 1),
             'git remote' => Process::result(output: 'origin'),
         ]);
 
@@ -57,6 +60,8 @@ class GitSyncCommandTest extends TestCase
     {
         Process::fake([
             'git rev-parse --git-dir' => Process::result(output: '.git'),
+            'git branch --show-current' => Process::result(output: 'main'),
+            'git status --porcelain' => Process::result(output: ''),
             'git add .' => Process::result(),
             'git diff --cached --quiet' => Process::result(exitCode: 1),
             '*' => Process::result(),
@@ -72,13 +77,15 @@ class GitSyncCommandTest extends TestCase
     {
         Process::fake([
             'git rev-parse --git-dir' => Process::result(output: '.git'),
+            'git branch --show-current' => Process::result(output: 'main'),
+            'git status --porcelain' => Process::result(output: ''),
             'git add .' => Process::result(),
             'git diff --cached --quiet' => Process::result(exitCode: 1),
             'git commit*' => Process::result(output: 'Committed successfully'),
         ]);
 
         $this->artisan('git:sync --commit-only')
-            ->expectsOutput(' Done! Changes committed successfully.')
+            ->expectsOutput(' Done! Changes committed successfully.')
             ->assertSuccessful();
 
         Process::assertRan('git commit*');
@@ -120,12 +127,14 @@ class GitSyncCommandTest extends TestCase
     {
         Process::fake([
             'git rev-parse --git-dir' => Process::result(output: '.git'),
+            'git branch --show-current' => Process::result(output: 'main'),
+            'git status --porcelain' => Process::result(output: ''),
             'git add .' => Process::result(),
             'git diff --cached --quiet' => Process::result(exitCode: 0), // No changes
         ]);
 
         $this->artisan('git:sync')
-            ->expectsOutput(' No changes to commit. Working tree is clean.')
+            ->expectsOutput(' No changes to commit. Working tree is clean.')
             ->assertSuccessful();
     }
 
@@ -134,10 +143,11 @@ class GitSyncCommandTest extends TestCase
     {
         Process::fake([
             'git rev-parse --git-dir' => Process::result(output: '.git'),
+            'git branch --show-current' => Process::result(output: 'main'),
+            'git status --porcelain' => Process::result(output: ''),
             'git add .' => Process::result(),
             'git diff --cached --quiet' => Process::result(exitCode: 1),
             'git commit*' => Process::result(),
-            'git branch --show-current' => Process::result(output: 'main'),
             'git remote' => Process::result(output: ''),
         ]);
 
@@ -151,10 +161,11 @@ class GitSyncCommandTest extends TestCase
     {
         Process::fake([
             'git rev-parse --git-dir' => Process::result(output: '.git'),
+            'git branch --show-current' => Process::result(output: 'feature-branch'),
+            'git status --porcelain' => Process::result(output: ''),
             'git add .' => Process::result(),
             'git diff --cached --quiet' => Process::result(exitCode: 1),
             'git commit*' => Process::result(),
-            'git branch --show-current' => Process::result(output: 'feature-branch'),
             'git remote' => Process::result(output: 'origin'),
             'git push origin feature-branch' => Process::result(
                 errorOutput: 'has no upstream branch',
@@ -165,7 +176,7 @@ class GitSyncCommandTest extends TestCase
 
         $this->artisan('git:sync')
             ->expectsOutput('Setting upstream branch...')
-            ->expectsOutput(' Changes pushed successfully')
+            ->expectsOutput(' Changes pushed successfully')
             ->assertSuccessful();
     }
 
@@ -174,11 +185,12 @@ class GitSyncCommandTest extends TestCase
     {
         Process::fake([
             'git rev-parse --git-dir' => Process::result(output: '.git'),
+            'git branch --show-current' => Process::result(output: 'main'),
+            'git status --porcelain' => Process::result(output: ''),
             'git add .' => Process::result(),
             'git status --short' => Process::result(output: 'M file.txt'),
             'git diff --cached --quiet' => Process::result(exitCode: 1),
             'git commit*' => Process::result(output: '[main abc123] Commit message'),
-            'git branch --show-current' => Process::result(output: 'main'),
             'git remote' => Process::result(output: 'origin'),
             'git push*' => Process::result(output: 'Pushed successfully'),
         ]);
@@ -207,6 +219,8 @@ class GitSyncCommandTest extends TestCase
     {
         Process::fake([
             'git rev-parse --git-dir' => Process::result(output: '.git'),
+            'git branch --show-current' => Process::result(output: 'main'),
+            'git status --porcelain' => Process::result(output: ''),
             'git add .' => Process::result(),
             'git diff --cached --quiet' => Process::result(exitCode: 1),
             '*' => Process::result(),
@@ -215,5 +229,89 @@ class GitSyncCommandTest extends TestCase
         $this->artisan('git:sync --commit-only --verbose')
             ->expectsOutputToContain('Message: chore:')
             ->assertSuccessful();
+    }
+
+    /** @test */
+    public function it_pulls_changes_before_pushing()
+    {
+        Process::fake([
+            'git rev-parse --git-dir' => Process::result(output: '.git'),
+            'git branch --show-current' => Process::result(output: 'main'),
+            'git remote' => Process::result(output: 'origin'),
+            'git pull origin main' => Process::result(output: 'Already up to date.'),
+            'git push origin main' => Process::result(),
+        ]);
+
+        $this->artisan('git:sync --push-only --pull')
+            ->expectsOutputToContain('Pulling changes from remote...')
+            ->expectsOutputToContain('Successfully pulled changes')
+            ->assertSuccessful();
+
+        Process::assertRan('git pull origin main');
+    }
+
+    /** @test */
+    public function it_handles_pull_merge_conflicts()
+    {
+        Process::fake([
+            'git rev-parse --git-dir' => Process::result(output: '.git'),
+            'git branch --show-current' => Process::result(output: 'main'),
+            'git remote' => Process::result(output: 'origin'),
+            'git pull origin main' => Process::result(
+                errorOutput: 'CONFLICT (content): Merge conflict in file.txt',
+                exitCode: 1
+            ),
+        ]);
+
+        $this->artisan('git:sync --push-only --pull')
+            ->expectsOutputToContain('Pull failed due to merge conflicts.')
+            ->assertFailed();
+    }
+
+    /** @test */
+    public function it_uses_configured_remote()
+    {
+        config(['git-sync.default_remote' => 'upstream']);
+
+        Process::fake([
+            'git rev-parse --git-dir' => Process::result(output: '.git'),
+            'git branch --show-current' => Process::result(output: 'feature'),
+            'git remote' => Process::result(output: 'upstream'),
+            'git push upstream feature' => Process::result(),
+        ]);
+
+        $this->artisan('git:sync --push-only')
+            ->assertSuccessful();
+
+        Process::assertRan('git push upstream feature');
+    }
+
+    /** @test */
+    public function it_warns_about_protected_branches()
+    {
+        config(['git-sync.safety_checks.protected_branches' => ['main', 'master']]);
+
+        Process::fake([
+            'git rev-parse --git-dir' => Process::result(output: '.git'),
+            'git branch --show-current' => Process::result(output: 'main'),
+        ]);
+
+        $this->artisan('git:sync --push-only')
+            ->expectsQuestion('Are you sure you want to continue?', false)
+            ->expectsOutputToContain('protected branch')
+            ->assertSuccessful();
+    }
+
+    /** @test */
+    public function it_validates_branch_names()
+    {
+        Process::fake([
+            'git rev-parse --git-dir' => Process::result(output: '.git'),
+            'git remote' => Process::result(output: 'origin'),
+        ]);
+
+        $this->artisan('git:sync --push-only --branch="invalid@branch"')
+            ->expectsOutputToContain('Invalid branch name')
+            ->assertFailed();
     }
 }

@@ -55,4 +55,37 @@ return [
         'protected_branches' => ['main', 'master', 'production'],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Hooks
+    |--------------------------------------------------------------------------
+    |
+    | Run custom commands at different stages of the sync process.
+    | Each command will be executed in the repository root directory.
+    |
+    */
+
+    'hooks' => [
+        // Commands to run before staging changes
+        'pre_stage' => [
+            // Example: 'composer format',
+        ],
+
+        // Commands to run before committing (after staging)
+        'pre_commit' => [
+            // Example: './vendor/bin/phpstan analyze',
+            // Example: './vendor/bin/pint --test',
+        ],
+
+        // Commands to run after successful commit
+        'post_commit' => [
+            // Example: 'echo "Commit successful!"',
+        ],
+
+        // Commands to run after successful push
+        'post_push' => [
+            // Example: 'echo "Deployed to remote!"',
+        ],
+    ],
+
 ];

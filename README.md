@@ -33,16 +33,33 @@ php artisan git:sync -m "New feature"    # Custom message
 
 ## Features
 
+### Core Features
 - **Dual Installation Modes**: Install globally or per-project
 - **Single command** to stage, commit, and push changes
 - **Custom or auto-generated** timestamped commit messages
 - **Multiple workflows**: commit-only, push-only, pull-before-push, dry-run modes
-- **Comprehensive error handling** for common Git scenarios
-- **Configurable** commit message prefixes and timestamp formats
 - **Automatic branch detection** and upstream setup
-- **Pull integration**: Optionally pull remote changes before pushing
-- **Verbose mode** for detailed output
 - **Works in non-Laravel projects** (when installed globally)
+
+### Safety & Validation
+- **Protected Branch Warnings**: Confirms before pushing to main/master/production
+- **Large File Detection**: Warns about files >10MB before committing
+- **Branch Name Validation**: Prevents invalid branch names
+- **Commit Message Validation**: Warns about too short/long messages
+- **Configuration Validation**: Catches config errors early
+- **Detached HEAD Detection**: Clear recovery instructions
+
+### User Experience
+- **Interactive Mode** (`--interactive`): Review changes before committing
+- **Enhanced Error Messages**: Actionable suggestions for all errors
+- **Status Display** (`--status`): Shows git status before/after operations
+- **Performance Statistics** (`--stats`): Shows duration, files changed, insertions/deletions
+- **Verbose Mode**: Detailed output for debugging
+
+### Extensibility
+- **Hooks Support**: Run custom commands at 4 stages (pre-stage, pre-commit, post-commit, post-push)
+- **Conventional Commits** (`--type`): Support for feat, fix, docs, etc.
+- **Configurable Everything**: Customize via config file or environment variables
 
 ## Installation
 
@@ -295,38 +312,203 @@ All commands support the same options:
 | Option | Shorthand | Description |
 |--------|-----------|-------------|
 | `--message="text"` | `-m "text"` | Custom commit message |
+| `--type=name` | - | Conventional commit type (feat, fix, docs, etc.) |
 | `--commit-only` | - | Commit without pushing |
 | `--push-only` | - | Push without committing |
 | `--pull` | - | Pull changes from remote before pushing |
 | `--dry-run` | - | Preview actions without executing |
 | `--verbose` | - | Show detailed output |
 | `--branch=name` | - | Push to specific branch |
+| `--interactive` | `-i` | Review changes before committing |
+| `--status` | - | Show git status before and after operations |
+| `--stats` | - | Show performance statistics after completion |
 
 **Examples with git-sync (Global):**
 ```bash
 git-sync -m "Add new feature"
+git-sync --type=feat -m "Add user dashboard"
 git-sync --commit-only
 git-sync --pull
 git-sync --dry-run
 git-sync --verbose
 git-sync --branch=develop
+git-sync --interactive
+git-sync --status
+git-sync --stats
 ```
 
 **Examples with artisan (Per-Project):**
 ```bash
 php artisan git:sync -m "Add new feature"
+php artisan git:sync --type=feat -m "Add user dashboard"
 php artisan git:sync --commit-only
 php artisan git:sync --pull
 php artisan git:sync --dry-run
 php artisan git:sync --branch=develop
+php artisan git:sync --interactive
+php artisan git:sync --status
+php artisan git:sync --stats
 ```
 
 **Examples with vendor/bin (Per-Project):**
 ```bash
 vendor/bin/git-sync -m "Add new feature"
+vendor/bin/git-sync --type=fix -m "Fix authentication bug"
 vendor/bin/git-sync --pull
 vendor/bin/git-sync --verbose
+vendor/bin/git-sync --interactive
+vendor/bin/git-sync --stats
 ```
+
+## Advanced Features
+
+### Conventional Commits
+
+Use standardized commit message formats with the `--type` flag:
+
+**Global:**
+```bash
+git-sync --type=feat -m "Add user dashboard"
+git-sync --type=fix -m "Fix login validation"
+git-sync --type=docs -m "Update API documentation"
+git-sync --type=refactor -m "Restructure authentication logic"
+```
+
+**Per-Project:**
+```bash
+php artisan git:sync --type=feat -m "Add user dashboard"
+php artisan git:sync --type=fix -m "Fix login validation"
+```
+
+**Available Types:**
+- `feat` - A new feature
+- `fix` - A bug fix
+- `docs` - Documentation changes
+- `style` - Code style changes (formatting, etc.)
+- `refactor` - Code refactoring
+- `perf` - Performance improvements
+- `test` - Adding or updating tests
+- `build` - Build system changes
+- `ci` - CI/CD changes
+- `chore` - Other changes
+- `revert` - Reverting previous commits
+
+**Note:** Enable conventional commits in your config:
+```php
+'conventional_commits' => [
+    'enabled' => true,
+],
+```
+
+### Interactive Mode
+
+Review your changes before committing with the `--interactive` flag:
+
+**Global:**
+```bash
+git-sync --interactive
+git-sync -i -m "Add feature"
+```
+
+**Per-Project:**
+```bash
+php artisan git:sync --interactive
+php artisan git:sync -i -m "Add feature"
+```
+
+**What it does:**
+1. Shows a summary of changed files
+2. Displays the full diff of staged changes
+3. Asks for confirmation before proceeding
+4. Allows you to abort if changes look incorrect
+
+### Status Display
+
+See git status before and after operations with the `--status` flag:
+
+**Global:**
+```bash
+git-sync --status
+git-sync --status -m "Update feature"
+```
+
+**Per-Project:**
+```bash
+php artisan git:sync --status
+php artisan git:sync --status -m "Update feature"
+```
+
+**Output shows:**
+- Initial repository status
+- Files to be committed
+- Final status after sync completion
+
+### Performance Statistics
+
+Track sync performance with the `--stats` flag:
+
+**Global:**
+```bash
+git-sync --stats
+git-sync --stats -m "Major refactor"
+```
+
+**Per-Project:**
+```bash
+php artisan git:sync --stats
+php artisan git:sync --stats -m "Major refactor"
+```
+
+**Statistics include:**
+- Total execution time
+- Number of files changed
+- Lines inserted
+- Lines deleted
+
+### Hooks System
+
+Execute custom commands at different stages of the sync process. Configure in `config/git-sync.php`:
+
+```php
+'hooks' => [
+    // Run before staging changes
+    'pre_stage' => [
+        'composer format',
+        './vendor/bin/pint',
+    ],
+
+    // Run before committing (can abort commit if they fail)
+    'pre_commit' => [
+        './vendor/bin/phpstan analyze',
+        './vendor/bin/pint --test',
+        'composer test',
+    ],
+
+    // Run after successful commit
+    'post_commit' => [
+        'echo "✓ Changes committed successfully!"',
+    ],
+
+    // Run after successful push
+    'post_push' => [
+        'echo "✓ Deployed to remote!"',
+        './deploy.sh staging',
+    ],
+],
+```
+
+**Hook Behavior:**
+- `pre_stage` and `pre_commit` hooks will **abort** the sync if they fail
+- `post_commit` and `post_push` hooks will show warnings but continue
+- All hooks run from the repository root directory
+- Use hooks for linting, testing, formatting, or deployment
+
+**Example Use Cases:**
+- Run code formatters before staging
+- Run tests before committing
+- Run static analysis before commit
+- Send notifications after push
+- Trigger deployments after push
 
 
 ## Configuration
@@ -338,6 +520,24 @@ return [
     // Default prefix for auto-generated commit messages
     'default_commit_prefix' => env('GIT_SYNC_COMMIT_PREFIX', 'chore'),
 
+    // Conventional commits support
+    'conventional_commits' => [
+        'enabled' => env('GIT_SYNC_CONVENTIONAL_COMMITS', false),
+        'types' => [
+            'feat' => 'A new feature',
+            'fix' => 'A bug fix',
+            'docs' => 'Documentation only changes',
+            'style' => 'Code style changes',
+            'refactor' => 'Code refactoring',
+            'perf' => 'Performance improvements',
+            'test' => 'Adding or updating tests',
+            'build' => 'Build system changes',
+            'ci' => 'CI/CD changes',
+            'chore' => 'Other changes',
+            'revert' => 'Reverting commits',
+        ],
+    ],
+
     // Timestamp format for commit messages
     'timestamp_format' => env('GIT_SYNC_TIMESTAMP_FORMAT', 'Y-m-d H:i'),
 
@@ -346,8 +546,16 @@ return [
 
     // Safety checks
     'safety_checks' => [
-        'max_file_size' => 10, // MB
-        'protected_branches' => ['main', 'master', 'production'],
+        'max_file_size' => 10, // MB - warns about large files
+        'protected_branches' => ['main', 'master', 'production'], // requires confirmation
+    ],
+
+    // Hooks - run custom commands at different stages
+    'hooks' => [
+        'pre_stage' => [],     // Before staging changes
+        'pre_commit' => [],    // Before committing (can abort)
+        'post_commit' => [],   // After successful commit
+        'post_push' => [],     // After successful push
     ],
 ];
 ```
@@ -358,6 +566,7 @@ You can also configure via `.env`:
 
 ```env
 GIT_SYNC_COMMIT_PREFIX=feat
+GIT_SYNC_CONVENTIONAL_COMMITS=true
 GIT_SYNC_TIMESTAMP_FORMAT="Y-m-d H:i:s"
 GIT_SYNC_REMOTE=origin
 ```
@@ -539,6 +748,37 @@ If you find this package helpful, please consider:
 - Reporting issues or suggesting features
 
 ## Changelog
+
+### Version 2.0.0
+
+**Safety & Validation:**
+- Protected branch warnings - confirmation required before pushing to main/master/production
+- Large file detection - warns about files >10MB before committing
+- Branch name validation - prevents invalid branch names
+- Commit message validation - warns about too short/long messages
+- Configuration validation - catches config errors early
+- Detached HEAD detection - clear recovery instructions
+- Use configured remote instead of hardcoded 'origin'
+
+**User Experience:**
+- Interactive mode (`--interactive`/`-i`) - review changes before committing
+- Enhanced error messages - actionable suggestions for all errors
+- Status display (`--status`) - shows git status before/after operations
+- Performance statistics (`--stats`) - displays duration, files changed, insertions/deletions
+- Detached HEAD handling - clear detection and recovery instructions
+
+**Extensibility:**
+- Hooks support - run custom commands at 4 stages (pre_stage, pre_commit, post_commit, post_push)
+- Conventional commits support (`--type`) - feat, fix, docs, etc.
+- Example configuration file (`config/git-sync.example.php`)
+- GitHub Actions workflow examples (`.github/workflows/example-usage.yml.example`)
+
+**Testing:**
+- Added tests for `--pull` functionality
+- Added tests for `GitSyncInstallCommand`
+- Added tests for protected branch warnings
+- Added tests for branch name validation
+- Added tests for configured remote usage
 
 ### Version 1.2.0
 - Added `--pull` option to pull remote changes before pushing

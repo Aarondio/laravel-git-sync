@@ -19,7 +19,9 @@ class GitSyncCommand extends Command
                             {--commit-only : Only commit, do not push}
                             {--push-only : Only push existing commits}
                             {--pull : Pull changes from remote before pushing}
-                            {--dry-run : Show what would be done without executing}';
+                            {--dry-run : Show what would be done without executing}
+                            {--i|interactive : Review changes before committing}
+                            {--status : Show git status before and after operations}';
 
     /**
      * The console command description.
@@ -59,9 +61,23 @@ class GitSyncCommand extends Command
         $this->line('https://github.com/Aarondio/laravel-git-sync');
         $this->newLine();
 
+        // Show initial status if requested
+        if ($this->option('status')) {
+            $this->showGitStatus('Before sync');
+        }
+
         // Push-only mode
         if ($pushOnly) {
-            return $this->pushChanges($dryRun, $verbose);
+            $exitCode = $this->pushChanges($dryRun, $verbose);
+            if ($this->option('status') && $exitCode === self::SUCCESS) {
+                $this->showGitStatus('After sync');
+            }
+            return $exitCode;
+        }
+
+        // Run pre-stage hooks
+        if (!$dryRun && !$this->runHooks('pre_stage')) {
+            return self::FAILURE;
         }
 
         // Stage changes
@@ -75,18 +91,46 @@ class GitSyncCommand extends Command
             return self::SUCCESS;
         }
 
+        // Interactive mode: show diff and ask for confirmation
+        if ($this->option('interactive') && !$dryRun) {
+            if (!$this->reviewChanges()) {
+                $this->info('Operation cancelled.');
+                return self::SUCCESS;
+            }
+        }
+
+        // Run pre-commit hooks
+        if (!$dryRun && !$this->runHooks('pre_commit')) {
+            return self::FAILURE;
+        }
+
         // Commit changes
         if (!$this->commitChanges($dryRun, $verbose)) {
             return self::FAILURE;
         }
 
+        // Run post-commit hooks
+        if (!$dryRun) {
+            $this->runHooks('post_commit');
+        }
+
         // Push changes (unless commit-only mode)
         if (!$commitOnly) {
-            return $this->pushChanges($dryRun, $verbose);
+            $exitCode = $this->pushChanges($dryRun, $verbose);
+            if ($this->option('status') && $exitCode === self::SUCCESS) {
+                $this->showGitStatus('After sync');
+            }
+            return $exitCode;
         }
 
         $this->newLine();
         $this->info('Done! Changes committed successfully.');
+
+        // Show final status for commit-only mode
+        if ($this->option('status')) {
+            $this->showGitStatus('After commit');
+        }
+
         return self::SUCCESS;
     }
 
@@ -119,8 +163,17 @@ class GitSyncCommand extends Command
         $result = Process::run('git add .');
 
         if (!$result->successful()) {
-            $this->error('Failed to stage changes.');
+            $this->error('Failed to stage changes. This usually happens when:');
+            $this->line('  • Files are locked by another process');
+            $this->line('  • Insufficient file permissions');
+            $this->line('  • File path contains invalid characters');
+            $this->newLine();
+            $this->line('Try running with --verbose for more details:');
+            $this->line('  php artisan git:sync --verbose');
+
             if ($verbose) {
+                $this->newLine();
+                $this->line('Detailed error:');
                 $this->line($result->errorOutput());
             }
             return false;
@@ -165,9 +218,37 @@ class GitSyncCommand extends Command
         $result = Process::run(['git', 'commit', '-m', $message]);
 
         if (!$result->successful()) {
-            $this->error('Failed to commit changes.');
-            if ($verbose) {
-                $this->line($result->errorOutput());
+            $errorOutput = $result->errorOutput();
+
+            // Check for specific error types
+            if (str_contains($errorOutput, 'nothing to commit')) {
+                $this->info('Nothing to commit. Working tree is clean.');
+                return true;
+            } elseif (str_contains($errorOutput, 'pre-commit hook')) {
+                $this->error('Pre-commit hook failed.');
+                $this->line('Your repository has a pre-commit hook that rejected the commit.');
+                $this->line('This usually happens when:');
+                $this->line('  • Code linting/formatting checks fail');
+                $this->line('  • Tests fail');
+                $this->line('  • Security checks detect issues');
+                if ($verbose) {
+                    $this->newLine();
+                    $this->line($errorOutput);
+                }
+            } else {
+                $this->error('Failed to commit changes. This usually happens when:');
+                $this->line('  • Git configuration is incomplete (name/email not set)');
+                $this->line('  • Commit message contains invalid characters');
+                $this->line('  • Repository is in a locked state');
+                $this->newLine();
+                $this->line('Check your Git configuration:');
+                $this->line('  git config user.name');
+                $this->line('  git config user.email');
+                if ($verbose) {
+                    $this->newLine();
+                    $this->line('Detailed error:');
+                    $this->line($errorOutput);
+                }
             }
             return false;
         }
@@ -270,6 +351,11 @@ class GitSyncCommand extends Command
             $this->line($result->errorOutput());
         }
 
+        // Run post-push hooks
+        if (!$dryRun) {
+            $this->runHooks('post_push');
+        }
+
         $this->newLine();
         $this->info('Done!');
 
@@ -304,10 +390,35 @@ class GitSyncCommand extends Command
         $result = Process::run('git branch --show-current');
 
         if (!$result->successful()) {
+            $this->warn('Unable to determine current branch.');
+            $this->line('This may indicate a repository issue.');
             return null;
         }
 
-        return trim($result->output());
+        $branch = trim($result->output());
+
+        // Check for detached HEAD state
+        if (empty($branch)) {
+            // Try to get the commit hash for detached HEAD
+            $headResult = Process::run('git rev-parse --short HEAD');
+            if ($headResult->successful()) {
+                $commit = trim($headResult->output());
+                $this->error("You are in a detached HEAD state (at commit {$commit}).");
+                $this->line('A detached HEAD means you\'re not on any branch.');
+                $this->newLine();
+                $this->line('To fix this, you need to:');
+                $this->line('  1. Create a new branch: git checkout -b <new-branch-name>');
+                $this->line('  2. Or checkout an existing branch: git checkout <branch-name>');
+                $this->newLine();
+                $this->line('Example:');
+                $this->line('  git checkout -b feature/my-work');
+            } else {
+                $this->error('Unable to determine repository state.');
+            }
+            return null;
+        }
+
+        return $branch;
     }
 
     /**
@@ -503,5 +614,115 @@ class GitSyncCommand extends Command
         if (trim($message) === '') {
             $this->warn('Commit message is empty or contains only whitespace.');
         }
+    }
+
+    /**
+     * Review changes interactively before committing.
+     */
+    protected function reviewChanges(): bool
+    {
+        $this->newLine();
+        $this->info('=== Review Changes ===');
+        $this->newLine();
+
+        // Show staged files summary
+        $statusResult = Process::run('git diff --cached --stat');
+        if ($statusResult->successful() && !empty(trim($statusResult->output()))) {
+            $this->line('Files to be committed:');
+            $this->line($statusResult->output());
+            $this->newLine();
+        }
+
+        // Ask if user wants to see full diff
+        if ($this->confirm('Would you like to see the full diff of changes?', true)) {
+            $diffResult = Process::run('git diff --cached --color=always');
+            if ($diffResult->successful() && !empty(trim($diffResult->output()))) {
+                $this->newLine();
+                $this->line($diffResult->output());
+                $this->newLine();
+            } else {
+                $this->line('No diff to display.');
+            }
+        }
+
+        // Final confirmation
+        return $this->confirm('Do you want to proceed with committing these changes?', true);
+    }
+
+    /**
+     * Run configured hooks for a specific stage.
+     */
+    protected function runHooks(string $stage): bool
+    {
+        $hooks = config("git-sync.hooks.{$stage}", []);
+
+        if (empty($hooks)) {
+            return true; // No hooks configured, continue
+        }
+
+        $verbose = $this->option('verbose');
+        $stageName = str_replace('_', '-', $stage);
+
+        $this->line("[*] Running {$stageName} hooks...");
+
+        foreach ($hooks as $hook) {
+            if ($verbose) {
+                $this->line("  Executing: {$hook}");
+            }
+
+            $result = Process::run($hook);
+
+            if (!$result->successful()) {
+                $this->error("Hook failed: {$hook}");
+                $this->line('Output:');
+                $this->line($result->output());
+                if ($result->errorOutput()) {
+                    $this->line('Error:');
+                    $this->line($result->errorOutput());
+                }
+
+                // Pre-stage and pre-commit hooks should stop execution
+                if (in_array($stage, ['pre_stage', 'pre_commit'])) {
+                    $this->newLine();
+                    $this->error('Operation aborted due to hook failure.');
+                    return false;
+                }
+
+                // Post hooks just warn but don't fail
+                $this->warn('Hook failed but continuing...');
+            } elseif ($verbose && $result->output()) {
+                $this->line($result->output());
+            }
+        }
+
+        if ($verbose) {
+            $this->info("All {$stageName} hooks completed successfully.");
+        }
+
+        return true;
+    }
+
+    /**
+     * Show git status with a label.
+     */
+    protected function showGitStatus(string $label): void
+    {
+        $this->newLine();
+        $this->info("=== Git Status: {$label} ===");
+
+        $result = Process::run('git status --short --branch');
+
+        if ($result->successful()) {
+            $output = trim($result->output());
+            if (empty($output)) {
+                $this->line('  Working tree is clean');
+            } else {
+                $this->line($output);
+            }
+        } else {
+            $this->warn('Unable to get git status');
+        }
+
+        $this->newLine();
     }
 }

@@ -1,0 +1,138 @@
+# Example GitHub Actions Workflow for Laravel Git Sync
+#
+# This is an example showing how to use git-sync in your CI/CD pipeline.
+# Rename this file to remove '.example' extension to use it.
+
+name: Auto Sync Changes
+
+on:
+  schedule:
+    # Run every day at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  auto-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for proper git operations
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, xml, ctype, json, bcmath
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+      - name: Run Git Sync with Conventional Commits
+        run: |
+          php artisan git:sync \
+            --type=chore \
+            -m "Automated sync from GitHub Actions" \
+            --verbose \
+            --stats
+        env:
+          GIT_SYNC_CONVENTIONAL_COMMITS: true
+
+      # Alternative: Sync only if there are changes
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Conditional Sync
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: php artisan git:sync --type=chore -m "Auto-sync"
+
+---
+# Example: Sync after running tests
+
+name: Test and Sync
+
+on:
+  push:
+    branches: [ develop ]
+
+jobs:
+  test-and-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Install dependencies
+        run: composer install
+
+      - name: Run tests
+        run: composer test
+
+      - name: Sync if tests pass
+        if: success()
+        run: |
+          git config user.name "Test Bot"
+          git config user.email "test@example.com"
+          php artisan git:sync --type=test -m "Tests passed" --commit-only
+
+---
+# Example: Using with pre-commit hooks
+
+name: Format and Sync
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  format-and-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Install dependencies
+        run: composer install
+
+      # Configure hooks in config/git-sync.php
+      - name: Publish config
+        run: php artisan vendor:publish --tag=git-sync-config
+
+      # Edit config to add pre-commit hooks
+      - name: Configure hooks
+        run: |
+          php -r "
+          \$config = include 'config/git-sync.php';
+          \$config['hooks']['pre_commit'] = ['./vendor/bin/pint --test'];
+          file_put_contents('config/git-sync.php', '<?php return ' . var_export(\$config, true) . ';');
+          "
+
+      - name: Sync with formatting checks
+        run: |
+          git config user.name "Format Bot"
+          git config user.email "format@example.com"
+          php artisan git:sync --type=style -m "Apply code formatting"

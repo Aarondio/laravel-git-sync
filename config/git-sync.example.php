@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * Laravel Git Sync - Example Configuration
+ *
+ * This is an example configuration showing all available options.
+ * Copy this to config/git-sync.php and customize as needed.
+ */
+
 return [
 
     /*
@@ -7,8 +14,8 @@ return [
     | Default Commit Prefix
     |--------------------------------------------------------------------------
     |
-    | This value determines the prefix used in auto-generated commit messages.
-    | Common values: 'chore', 'feat', 'fix', 'update', 'wip'
+    | The prefix used in auto-generated commit messages when no custom
+    | message is provided. Common values: 'chore', 'feat', 'fix', 'wip'
     |
     */
 
@@ -19,15 +26,16 @@ return [
     | Conventional Commits
     |--------------------------------------------------------------------------
     |
-    | Enable conventional commits format validation and suggestions.
-    | When enabled, the package will suggest conventional commit types.
+    | Enable conventional commits format validation. When enabled, you can
+    | use the --type flag to specify commit types like feat, fix, docs, etc.
+    |
+    | Usage: php artisan git:sync --type=feat -m "Add user dashboard"
     |
     */
 
     'conventional_commits' => [
-        'enabled' => env('GIT_SYNC_CONVENTIONAL_COMMITS', false),
+        'enabled' => env('GIT_SYNC_CONVENTIONAL_COMMITS', true),
 
-        // Valid conventional commit types
         'types' => [
             'feat' => 'A new feature',
             'fix' => 'A bug fix',
@@ -60,8 +68,8 @@ return [
     | Default Remote
     |--------------------------------------------------------------------------
     |
-    | The default remote repository to push to.
-    | Typically 'origin', but can be customized.
+    | The default remote repository to push to. Typically 'origin', but can
+    | be customized if your workflow uses different remotes.
     |
     */
 
@@ -72,15 +80,18 @@ return [
     | Safety Checks
     |--------------------------------------------------------------------------
     |
-    | Enable safety checks before committing and pushing.
+    | Enable safety checks before committing and pushing. These checks help
+    | prevent common mistakes and maintain repository health.
     |
     */
 
     'safety_checks' => [
         // Check for large files before committing (in MB)
+        // Files larger than this will trigger a warning
         'max_file_size' => 10,
 
         // Warn if committing to these branches
+        // Users will be asked for confirmation before proceeding
         'protected_branches' => ['main', 'master', 'production'],
     ],
 
@@ -92,28 +103,40 @@ return [
     | Run custom commands at different stages of the sync process.
     | Each command will be executed in the repository root directory.
     |
+    | Example use cases:
+    | - Run code formatters before staging
+    | - Run tests before committing
+    | - Send notifications after successful push
+    | - Deploy to staging after push
+    |
     */
 
     'hooks' => [
         // Commands to run before staging changes
         'pre_stage' => [
-            // Example: 'composer format',
+            // 'composer format',
+            // './vendor/bin/pint',
         ],
 
         // Commands to run before committing (after staging)
+        // These hooks can stop the commit if they fail
         'pre_commit' => [
-            // Example: './vendor/bin/phpstan analyze',
-            // Example: './vendor/bin/pint --test',
+            // './vendor/bin/phpstan analyze',
+            // './vendor/bin/pint --test',
+            // 'npm run lint',
+            // 'composer test',
         ],
 
         // Commands to run after successful commit
         'post_commit' => [
-            // Example: 'echo "Commit successful!"',
+            // 'echo "✓ Changes committed successfully!"',
         ],
 
         // Commands to run after successful push
         'post_push' => [
-            // Example: 'echo "Deployed to remote!"',
+            // 'echo "✓ Changes pushed to remote!"',
+            // './deploy.sh staging',
+            // 'curl -X POST https://example.com/webhook',
         ],
     ],
 

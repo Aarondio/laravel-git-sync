@@ -15,13 +15,15 @@ class GitSyncCommand extends Command
     protected $signature = 'git:sync
                             {--message= : Custom commit message}
                             {--m= : Shorthand for custom commit message}
+                            {--type= : Conventional commit type (feat, fix, docs, etc.)}
                             {--branch= : Specify branch to push to}
                             {--commit-only : Only commit, do not push}
                             {--push-only : Only push existing commits}
                             {--pull : Pull changes from remote before pushing}
                             {--dry-run : Show what would be done without executing}
                             {--i|interactive : Review changes before committing}
-                            {--status : Show git status before and after operations}';
+                            {--status : Show git status before and after operations}
+                            {--stats : Show sync statistics after completion}';
 
     /**
      * The console command description.
@@ -31,14 +33,31 @@ class GitSyncCommand extends Command
     protected $description = 'Stage, commit, and push changes to Git with a single command';
 
     /**
+     * Statistics tracking
+     */
+    protected $startTime;
+    protected $stats = [
+        'files_changed' => 0,
+        'insertions' => 0,
+        'deletions' => 0,
+    ];
+
+    /**
      * Execute the console command.
      */
     public function handle(): int
     {
+        $this->startTime = microtime(true);
+
         $dryRun = $this->option('dry-run');
         $verbose = $this->option('verbose');
         $pushOnly = $this->option('push-only');
         $commitOnly = $this->option('commit-only');
+
+        // Validate configuration
+        if (!$this->validateConfiguration()) {
+            return self::FAILURE;
+        }
 
         // Check if we're in a git repository
         if (!$this->isGitRepository()) {
@@ -69,8 +88,13 @@ class GitSyncCommand extends Command
         // Push-only mode
         if ($pushOnly) {
             $exitCode = $this->pushChanges($dryRun, $verbose);
-            if ($this->option('status') && $exitCode === self::SUCCESS) {
-                $this->showGitStatus('After sync');
+            if ($exitCode === self::SUCCESS) {
+                if ($this->option('status')) {
+                    $this->showGitStatus('After sync');
+                }
+                if ($this->option('stats')) {
+                    $this->showStats();
+                }
             }
             return $exitCode;
         }
@@ -117,8 +141,13 @@ class GitSyncCommand extends Command
         // Push changes (unless commit-only mode)
         if (!$commitOnly) {
             $exitCode = $this->pushChanges($dryRun, $verbose);
-            if ($this->option('status') && $exitCode === self::SUCCESS) {
-                $this->showGitStatus('After sync');
+            if ($exitCode === self::SUCCESS) {
+                if ($this->option('status')) {
+                    $this->showGitStatus('After sync');
+                }
+                if ($this->option('stats')) {
+                    $this->showStats();
+                }
             }
             return $exitCode;
         }
@@ -126,9 +155,12 @@ class GitSyncCommand extends Command
         $this->newLine();
         $this->info('Done! Changes committed successfully.');
 
-        // Show final status for commit-only mode
+        // Show final status and stats for commit-only mode
         if ($this->option('status')) {
             $this->showGitStatus('After commit');
+        }
+        if ($this->option('stats')) {
+            $this->showStats();
         }
 
         return self::SUCCESS;
@@ -368,6 +400,23 @@ class GitSyncCommand extends Command
     protected function getCommitMessage(): string
     {
         $message = $this->option('message') ?? $this->option('m');
+        $type = $this->option('type');
+
+        // If type is specified, validate it for conventional commits
+        if ($type) {
+            if (!$this->validateConventionalCommitType($type)) {
+                return '';
+            }
+
+            // If message provided with type, combine them
+            if ($message) {
+                $message = "{$type}: {$message}";
+            } else {
+                // Type only, add timestamp
+                $timestamp = now()->format(config('git-sync.timestamp_format', 'Y-m-d H:i'));
+                $message = "{$type}: {$timestamp}";
+            }
+        }
 
         if ($message) {
             // Validate custom message
@@ -721,6 +770,114 @@ class GitSyncCommand extends Command
             }
         } else {
             $this->warn('Unable to get git status');
+        }
+
+        $this->newLine();
+    }
+
+    /**
+     * Validate configuration settings.
+     */
+    protected function validateConfiguration(): bool
+    {
+        $errors = [];
+
+        // Validate max_file_size
+        $maxFileSize = config('git-sync.safety_checks.max_file_size');
+        if (!is_numeric($maxFileSize) || $maxFileSize < 0) {
+            $errors[] = 'safety_checks.max_file_size must be a positive number';
+        }
+
+        // Validate protected_branches is an array
+        $protectedBranches = config('git-sync.safety_checks.protected_branches');
+        if (!is_array($protectedBranches)) {
+            $errors[] = 'safety_checks.protected_branches must be an array';
+        }
+
+        // Validate hooks are arrays
+        foreach (['pre_stage', 'pre_commit', 'post_commit', 'post_push'] as $hook) {
+            $hookValue = config("git-sync.hooks.{$hook}");
+            if (!is_array($hookValue)) {
+                $errors[] = "hooks.{$hook} must be an array";
+            }
+        }
+
+        // Validate default_remote is a string
+        $defaultRemote = config('git-sync.default_remote');
+        if (!is_string($defaultRemote) || empty($defaultRemote)) {
+            $errors[] = 'default_remote must be a non-empty string';
+        }
+
+        if (!empty($errors)) {
+            $this->error('Configuration validation failed:');
+            foreach ($errors as $error) {
+                $this->line("  • {$error}");
+            }
+            $this->newLine();
+            $this->line('Please check your config/git-sync.php file.');
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Validate conventional commit type.
+     */
+    protected function validateConventionalCommitType(string $type): bool
+    {
+        $types = config('git-sync.conventional_commits.types', []);
+
+        if (empty($types)) {
+            $this->warn('Conventional commits are not configured.');
+            return false;
+        }
+
+        if (!isset($types[$type])) {
+            $this->error("Invalid conventional commit type: {$type}");
+            $this->newLine();
+            $this->line('Valid types are:');
+            foreach ($types as $validType => $description) {
+                $this->line("  <fg=cyan>{$validType}</> - {$description}");
+            }
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Collect and show statistics.
+     */
+    protected function showStats(): void
+    {
+        $duration = round((microtime(true) - $this->startTime) * 1000);
+
+        $this->newLine();
+        $this->info('=== Sync Statistics ===');
+
+        // Get commit stats if available
+        $result = Process::run('git diff --shortstat HEAD~1');
+        if ($result->successful() && !empty(trim($result->output()))) {
+            $output = trim($result->output());
+            // Parse output like: "2 files changed, 45 insertions(+), 3 deletions(-)"
+            if (preg_match('/(\d+) files? changed/', $output, $matches)) {
+                $this->stats['files_changed'] = (int) $matches[1];
+            }
+            if (preg_match('/(\d+) insertions?/', $output, $matches)) {
+                $this->stats['insertions'] = (int) $matches[1];
+            }
+            if (preg_match('/(\d+) deletions?/', $output, $matches)) {
+                $this->stats['deletions'] = (int) $matches[1];
+            }
+        }
+
+        $this->line("Duration: {$duration}ms");
+
+        if ($this->stats['files_changed'] > 0) {
+            $this->line("Files changed: {$this->stats['files_changed']}");
+            $this->line("Insertions: <fg=green>+{$this->stats['insertions']}</>");
+            $this->line("Deletions: <fg=red>-{$this->stats['deletions']}</>");
         }
 
         $this->newLine();
